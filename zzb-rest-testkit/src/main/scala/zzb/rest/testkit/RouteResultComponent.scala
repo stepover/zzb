@@ -1,0 +1,111 @@
+package zzb.rest.testkit
+
+import zzb.rest._
+import java.util.concurrent.CountDownLatch
+import concurrent.duration._
+import akka.actor.{ ActorSystem, Status, ActorRefFactory, ActorRef }
+import akka.spray.UnregisteredActorRef
+import akka.testkit._
+
+
+/**
+ * Created with IntelliJ IDEA.
+ * User: Simon Xiao
+ * Date: 14-3-3
+ * Time: 上午11:43
+ * Copyright baoxian.com 2012~2020
+ */
+trait RouteResultComponent {
+
+  def failTest(msg: String): Nothing
+
+  /**
+   * A receptacle for the response, rejections and potentially generated response chunks created by a route.
+   */
+  class RouteResult(timeout: FiniteDuration)(implicit actorRefFactory: ActorRefFactory) {
+    private[this] var _response: Option[RestResponse] = None
+    private[this] var _rejections: Option[List[Rejection]] = None
+    //private[this] val _chunks = ListBuffer.empty[MessageChunk]
+    //private[this] var _closingExtension = ""
+    //private[this] var _trailer: List[RestHeader] = Nil
+    private[this] val latch = new CountDownLatch(1)
+    private[this] var virginal = true
+
+    private[testkit] val handler = new UnregisteredActorRef(actorRefFactory) {
+      def handle(message: Any)(implicit sender: ActorRef) {
+        //def verifiedSender =
+        //  if (sender != null) sender else sys.error("Received message " + message + " from unknown sender (null)")
+        message match {
+          case x: RestResponse ⇒
+            saveResult(Right(x))
+            latch.countDown()
+          case Rejected(rejections) ⇒
+            saveResult(Left(rejections))
+            latch.countDown()
+//          case HttpMessagePartWrapper(ChunkedResponseStart(x), ack) ⇒
+//            saveResult(Right(x))
+//            ack.foreach(verifiedSender.tell(_, this))
+//          case HttpMessagePartWrapper(x: MessageChunk, ack) ⇒
+//            synchronized { _chunks += x }
+//            ack.foreach(verifiedSender.tell(_, this))
+//          case HttpMessagePartWrapper(ChunkedMessageEnd(extension, trailer), _) ⇒
+//            synchronized { _closingExtension = extension; _trailer = trailer }
+//            latch.countDown()
+          case Status.Failure(error) ⇒
+            sys.error("Route produced exception: " + error)
+          case x ⇒
+            sys.error("Received invalid route response: " + x)
+        }
+      }
+    }
+
+    private[testkit] def awaitResult: this.type = {
+      latch.await(timeout.toMillis, MILLISECONDS)
+      this
+    }
+
+    private def saveResult(result: Either[List[Rejection], RestResponse]): Unit = {
+      synchronized {
+        if (!virginal) failTest("Route completed/rejected more than once")
+        result match {
+          case Right(resp) ⇒ _response = Some(resp)
+          case Left(rejs)  ⇒ _rejections = Some(rejs)
+        }
+        virginal = false
+      }
+    }
+
+    private def failNotCompletedNotRejected(): Nothing =
+      failTest("Request was neither completed nor rejected within " + timeout)
+
+    def handled: Boolean = synchronized { _response.isDefined }
+    def response: RestResponse = synchronized {
+      _response.getOrElse {
+        _rejections.foreach {
+          RejectionHandler.applyTransformations(_) match {
+            case Nil ⇒ failTest("Request was not handled")
+            case r   ⇒ failTest("Request was rejected with " + r)
+          }
+        }
+        failNotCompletedNotRejected()
+      }
+    }
+    def rejections: List[Rejection] = synchronized {
+      _rejections.getOrElse {
+        _response.foreach(resp ⇒ failTest("Request was not rejected, response was " + resp))
+        failNotCompletedNotRejected()
+      }
+    }
+    //def chunks: List[MessageChunk] = synchronized { _chunks.toList }
+    //def closingExtension = synchronized { _closingExtension }
+    //def trailer = synchronized { _trailer }
+
+    def ~>[T](f: RouteResult ⇒ T): T = f(this)
+  }
+
+  case class RouteTestTimeout(duration: FiniteDuration)
+
+  object RouteTestTimeout {
+    implicit def default(implicit system: ActorSystem) = RouteTestTimeout(1.second dilated)
+  }
+}

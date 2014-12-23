@@ -1,0 +1,14 @@
+﻿httpie 是一个很方便的命令行工具，用于发起 Restful API的调用请求。
+我们可以用他来执行 SrvBox 的管理命令。
+
+Windows 下 httpie 安装说明：
+
+1. 首先安装 python ,下载地址 http://www.python.org/ftp/python/3.3.2/
+2. 执行 srv-utils/tools 目录下两个python脚本
+    ez_setup.py 
+3. 确保 <python-install-dir>/Scripts 在你的 path 环境变量中
+4. 执行 easy_install httpie
+
+安装过程中可能会出现下载中断，再来一次或者本地装一个翻墙的代理。
+
+

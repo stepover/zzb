@@ -1,0 +1,50 @@
+﻿1. Service Config 设计模式简介
+
+ 先看这篇文章吧  http://docs.huihoo.com/ace_tao/ACE-2002-12/Part-One/Chapter-10.htm
+ 
+ SrvBox 实现了一个基于 Akka 服务的服务管理器。主要特性：
+
+ ● 所有实现了zzb.service.BoxedService trait 的服务都可以部署在SrvBox进程中
+ ● 同一个SrvBox进程中的多个 BoxedService 可以独立使用自己的 ActorSystem,也可以共享SrvBox的ActorSystem
+ ● SrvBox 提供了Restful接口，可以查询当前部署的所有服务状态，可以单独启动或停止某一个服务。
+ ● 部署在SrvBox中的服务可以支持Restful接口
+
+2.参照 examples\srvbox-demoService 实现自己的 BoxedService 服务。
+  有以下关键点：
+  a)依赖项，你的服务项目编译需要依赖srv-service，
+ 
+  b) 新建服务需要实现 BoxedService trait
+  c) 程序进程入口是 zzb.srvbox.BoxApp, 所有服务都通过它加载，
+     在sbt中要把 project 设置的 mainClass 设置为它（参见 project/BuildSettings.scala 中定义的 boxedServiceSettings）
+     在IDE 中要自己修改运行设置。
+  d) 新建服务如果需要支持Restful接口，只需混入 RestSupport trail,实现其 route 函数（标准的spary route)
+      对 http://hostname/<service name>/... 的访问会被转到你的route实现
+  e) 提供一个 srvbox.conf 的配置文件 ，这是标准的akka风格文件，其中的 services {} 指定所有可以加载的服务
+   例如： 
+
+    services {
+        names = ["demo","service2]
+     
+        demo {
+            serviceClass = "zzb.srvdemo.DemoService"
+            init-start = 1
+            share-actorSystem = 1
+        }
+        service2{
+            serviceClass = "zzb.srvdemo.Service2"
+            init-start = 1
+            share-actorSystem = 0
+        }
+        path{
+            #路径设置
+            demo=["/test/test.*"]
+        }
+    }
+
+    每个服务都有一个自己的配置文件，文件名称“服务名.conf"，服务启动时配置会被加载，并传递到服务对象实例。
+    init-start 表示服务是否会初始启动，默认值为1
+    share-actorSystem 表示服务是使用独立的 ActorSystem 还是共享的，默认值为1
+    
+  
+
+

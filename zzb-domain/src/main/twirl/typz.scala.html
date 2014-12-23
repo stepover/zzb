@@ -1,0 +1,118 @@
+@(rootPath:String,structPath:zzb.datatype.StructPath,typz: zzb.datatype.meta.TypeInfo)
+<html>
+<head>
+    <title>@typz.memo</title>
+    <link rel="stylesheet" type="text/css" href="@rootPath/css/stylesheet.css" title="Style">
+</head>
+@preSlash(text: String) = @{
+    if(text == "/") "" else text
+}
+
+@inheritanceBody(_paths:zzb.datatype.NestedStructFields)={
+@_paths match{
+case head :: Nil =>{
+<li>@head().typeInfo.simpleCode | @head().typeInfo.memo</li>
+}
+case head :: tail =>{
+<li><a href="@rootPath/@head().typeInfo.valueCode/" title="">@head().typeInfo.simpleCode | @head().typeInfo.memo</a>
+</li>
+<li>
+    <ul class="inheritance">
+        @inheritanceBody(tail)
+    </ul>
+<li>
+    }
+    }
+    }
+
+    <body>
+    <div class="header">
+        <div class="title">@typz.memo</div>
+        <h4 class="subTitle">
+            类型 ：
+            @if(typz.hasChild){
+            <a href="@rootPath/@typz.valueCode/" title="">@typz.toString</a>
+            &nbsp;&nbsp;<a href="?json=true" target="_blank">[json]</a>
+            }else{
+            @typz.toString
+            }
+            &nbsp;&nbsp;&nbsp;&nbsp;
+
+            路径：@structPath.relativeStr
+
+        </h4>
+    </div>
+    <ul class="inheritance">
+        <li><a href="@rootPath" title=""><strong>&nbsp;&nbsp; ALL</strong> </a></li>
+        <li>
+            <ul class="inheritance">
+                @inheritanceBody(structPath.inStructPath)
+            </ul>
+        <li>
+    </ul>
+    <div class="contentContainer">
+        <div class="summary">
+            <ul class="blockList">
+                <li class="blockList">
+                    <ul class="blockList">
+                        <li class="blockList"><a name="field_summary"></a>
+                            <table class="overviewSummary" border="0" cellpadding="3" cellspacing="0">
+                                <caption><span>内部字段</span> <span class="tabEnd">&nbsp;</span></caption>
+
+                                <tr>
+                                    <th class="colFirst" scope="col">子路径</th>
+                                    <th class="colFirst" scope="col">全路径</th>
+                                    <th class="colFirst" scope="col">类型</th>
+                                    <th class="colFirst" scope="col">必填项?</th>
+                                    <th class="colFirst" scope="col">有缺省值?</th>
+                                    <th class="colLast" scope="col">说明</th>
+                                </tr>
+                                @typz.fields.zipWithIndex.map{case (f,i)=>
+                                @if(i % 2 == 0){
+                                <tr class="altColor">
+                                    }else{
+                                <tr class="rowColor">
+                                    }
+
+                                    <td class="colFirst">
+                                        @if(f.typeInfo.hasChild){
+                                        <a href="@f.code/" title="">/@f.code</a>
+                                        }else{<code>/@f.code</code>}
+                                    </td>
+                                    <td class="colFirst">
+
+                                        @if(f.typeInfo.hasChild){
+                                        <a href="@f.code/">
+                                            @preSlash(structPath.relativeStr)/@f.code
+                                        </a>
+                                        }else{
+                                            @preSlash(structPath.relativeStr)/@f.code
+                                        }
+                                    </td>
+                                    <td class="colFirst">
+                                        @if(f.typeInfo.hasChild){
+                                        <code><a href="@rootPath/@f.typeInfo.valueCode/"
+                                                 title="">@f.typeInfo.toString</a></code>
+                                        }else{<code>@f.typeInfo.toString</code>}
+                                    </td>
+                                    <td class="colFirst">
+                                        @f.require
+                                    </td>
+                                    <td class="colFirst">
+                                        @f.withDefault
+                                    </td>
+                                    <td class="colLast">
+                                        @f.typeInfo.memo
+                                    </td>
+                                </tr>
+                                }
+                            </table>
+                        </li>
+
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+    </body>
+</html>

@@ -1,0 +1,262 @@
+﻿SrvBox 工程规范
+
+1.概述
+本规范描述基于 SrvBox 的项目的在项目结构，配置文件组织编译设置，打包发布，运行环境等
+方面的标准。所有基于 SrvBox 的项目使用 sbt 作为编译和发布打包的工具，符合本规范的工
+程将具有以下特性。
+
+    a)可以通过sbt-idea插件自动生成多module的idea项目结构
+    b)可以在 idea , sbt 命令行完成程序的执行和单元测试
+    c)可以通过 sbt 自动完成向maven库的发布
+    d)可以通过 sbt-box 自动完成应用打包，支持windows 和 Linux 下的启动
+    e)可以适应技术测试、业务测试、生产环境等多种不同运行环境下的配置管理
+    f)可以通过 Restful API进行服务状态的查询和启动停止
+
+
+2.工程目录结构
+
+    以下为标准的工程目录结构。
+    ┌─────────────────────────────────────────   目录结构   ────────────────────────────────────
+    │ 前面标注 "*" 的目录或文件名称不要修改，其他如你所愿。
+    │
+    │ root_project                        ----- 主项目
+    │   * conf/                           ----- 配置文件路径(在idea,sbt命令行,发布包中都会进入classpath)
+    │   * deplib                          ----- 这里放独立的 jar 包（不是通过maven管理的），这里的jar包会进入所有子模块的classpath
+    │   * project/                        ----- sbt 编译工程
+    │          Build.scala                ----- 主编译定义文件，这个文件中会定义整体的工程模块目录结构，这个是自己主要要修改的文件
+    │          BuildSettings.scala        ----- 定义了常用的编译设置，根据需要做少量修改（工程名称，版本号等）
+    │          NightlyBuildSupport.scala  ----- 每日构建支持，从例子项目中考过来就行，基本不用改
+    │          plugins.sbt                ----- 编译时使用到的 sbt 插件，根据需要增删
+    │          Utils.scala                ----- 支持编译的工具代码，考过来就行，不用修改
+    │     sub_project1/                   ----- 子项目1
+    │     sub_project2/                   ----- 子项目2
+    │     sub_project3/                   ----- 子项目3
+    │   *      src/                       ----- 以下是标准的 sbt 源码路径结构
+    │   *         main/
+    │   *             java/
+    │   *             resources/
+    │   *             scala/
+    │   *         test/
+    │   *             java/
+    │   *             resources/
+    │   *             scala/
+    └────────────────────────────────────────────────────────────────────────────────────────
+
+    基于此目录结构的工程示例可以从 http://10.68.3.65/svn/Util/trunk/srv-utils/examples/project-struct
+    获取。 可以以此示例为基础构建你自己的工程目录。
+
+    基于SrbBox的服务采用多模块的工程结构，一个root模块下带多个子模块，每个子模块可以是一个BoxedService
+    或其他类型模块。每个子模块可以单独发布到maven,所有子模块都共享相同的版本号。每个子模块有一个单独的目录，
+    子模块内部的目录结构是标准的 sbt 预定义源码目录结构。
+
+    我们应该将相关的功能模块放到同一个root工程下，即使你只有一个模块也应该如此。因为说不定做着做着，一个模块就
+    变成了多个模块。
+
+    所有子模块的配置文件都应该放到root目录下的 conf 中。后面会在”配置文件规划“一节中详述。
+
+    deplib 目录下放置这里放独立的 jar 包（不是通过maven管理的），这里的jar包会进入所有子模块的classpath。也会被
+    打包的发布包中。如果新增加了文件，需要执行 sbt gen-idea 命令，idea 工具中才会生效。
+
+
+3. 工程设置
+
+    我们采用 sbt 作为工程管理工具。 root_project/project 下就是 sbt 的管理工程。
+
+  3.1 什么是 sbt 编译工程？
+    sbt 让我们能够用代码来控制编译过程的动作，而不仅仅像 ant,maven 那样只能通过配置文件。这样功能强大，灵活性
+    天下无双，做一个好的工程管理规划就像写代码一样。不过有很多现成的插件可以使用。这个用于做工程管理的项目就是sbt
+    管理工程，他也是一个含代码、资源，需要编译执行的项目。只不过这个项目是用来控制我们的应用工程如何编译、运行、发
+    布等等事项。
+
+    当你通过命令行在 root_project 下执行 sbt 命令启动sbt管理工具的时候，这个 sbt 管理工程就会被编译。其编译
+    的结果就在 root_project/project/target 下。
+
+    ┌─────────── 【高级内容，看不懂的略过】──────────────────────
+    │实际上 sbt 的工程管理是递归的，你可以在 root_project/project
+    │再加一个 project 目录，也放 sbt 代码，由它控制上层sbt 管理工程的
+    │工程管理。只要你乐意还可以一直往下嵌套，有木有《盗梦空间》的感觉。
+    └────────────────────────────────────────────────────
+
+    因为 sbt 管理工程 功能太强大，可以做出无数中可能。我从 spary 的工程管理项目中借鉴来了一些代码，稍作改动，用来
+    作为我们的标准工程管理基线。同时，开发了一个sbt插件 "sbt-box"，专门用于本工程规范的支持。
+
+  3.2 工程结构（多个工程模块）的定义
+    root_project/project/Build.scala 中定义了工程结构。
+
+    在这个文件中要完成以下定义，
+
+    a) root 工程名称
+    b) 包含的子模块名称及目录
+    c) 子模块之间的依赖关系
+    d) root 工程和各子模块的设置
+    e) 定义每个模块在编译、测试、运行时对外部包的依赖
+
+    ┌─────────────────────────────────────────   DEMO CODE ────────────────────────────────────
+    │
+    │  lazy val root = Project("root_project", file("."))
+    │    .aggregate(service_a,service_b)	      //定义包含的子模块
+    │    .dependsOn(service_a, service_b)            //加上对所有子模块的依赖
+    │    .settings(rootSetting: _*)	              //这一行一定要加上，这是sbt-box插件为root project定义的设置，打包时会生效
+    │
+    │
+    │  lazy val service_a = Project("service-a", file("service-a"))	 //Project 的第一个参数是工程名称，第二个参数是文件相对目录
+    │    .settings(moduleSettings: _*)
+    │    .settings(boxedServiceSettings: _*)
+    │    .settings(libraryDependencies ++=
+    │    compile(scalaloggingSlf4j, srvBox) ++
+    │      test(scalatest) ++
+    │      runtime(logback)
+    │  )
+    │   lazy val service_b = Project("service-b", file("service-b"))
+    │     .dependsOn(service_a)                  //指定工程的依赖性
+    │     .settings(moduleSettings: _*)
+    │     .settings(boxedServiceSettings: _*)
+    │     .settings(libraryDependencies ++=
+    │     compile(scalaloggingSlf4j, srvBox) ++    //指定不同环境下需要的外部依赖（定义在Dependencies.scala中)
+    │       test(scalatest) ++
+    │       runtime(logback)
+    │
+    └──────────────────────────────────────────────────────────────────────────────────────
+
+    上面的例子来自示例工程，定义了一个root_project，包含两个子模块 service_a ，和 service_b.
+
+    root_project 附加了 rootSetting
+    service_a，service_b 附加了moduleSettings, 他们都是 BoxedService ,所以还附加了 boxedServiceSettings 。
+    rootSetting，moduleSettings，boxedServiceSettings 都在 BuildSettings.scala 中定义了。
+
+  3.3 定义构建参数（BuildSettings.scala）
+
+    在 BuildSettings.scala 中你可以做以下事情
+
+    a) 定义产品的基本信息（版本号，maven id,采用的scala版本，scala 编译选项）
+    b) 产品发布的 maven 路径
+    c) 更复杂的设置组合
+
+    在示例工程中我们定义了以下设置组合
+
+    basicSettings         基本信息设置
+    formatSettings        代码格式化设置（会帮你自动将代码格式化，如果不喜欢可以关掉）
+    noPublishing          表示不会发布到maven
+    boxedServiceSettings  表示是一个BoxedService (该设置主要是将模块的启动类定义成 zzb.srvbox.BoxApp )
+    moduleSettings        一般子模块使用的设置（= basicSettings ++ formatSettings ++  packSettings ++ 补充定义项）
+    rootSetting           root 工程设置 ( =  rootPackSetting ++ noPublishing)
+
+    （packSettings 和 rootPackSetting 都是定义在 sbt-box 插件中，用来控制打包的）
+
+    你也可以定义更复杂的设置组合，前提是要对 SBT 有足够了解。如果有需要可以找我，我帮你琢磨。
+
+  3.4 依赖项及插件定义
+
+       Dependencies.scala 定义了外部依赖包。
+       在这里可以管理外部 maven 的路径。
+       对每一个外部依赖定义一个变量，指定其maven id,这个变量会在 Build.scala 中使用。
+
+       plugins.sbt 定义 构建说需要的 sbt 插件。
+
+       addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0") //用于生成 Idea 工程
+
+4. 配置文件规划
+
+   我们的系统经常会有不同的运行环境：
+
+      dev  --- 本地开发环境
+      net  --- 技术集成测试环境
+      org  --- 技术功能测试环境
+      uat  --- 用户确认环境（业务测试，准生产）
+      com  --- 正式生产环境
+
+   每个服务模块都有自己的配置文件，不同环境配置文件内容又有小差别，很容易出错。
+
+   因此这里定义配置文件约定如下：
+
+   a) root_project/conf  有子目录结构如下
+        conf/
+            env/
+               dev/
+               net/
+               org/
+               uat/
+               com/
+   b) 一个root项目下所有子模块的配置文件放置在 root_project/conf 下 env/*/ 下如果有和conf/ 下同名的配置文件。
+      env/*/ 下的配置文件内容会覆盖 conf/ 下的文件。
+      这个覆盖过程是一个合并动作，两个同名配置文件内容会合并，如有同名字段，以env/*/下的优先。
+      这样你可以在 conf/ 下的配置文件中写完整的配置内容，个别环境需要修改的特定值写在 env/*/下。
+
+      在sbt命令行中，IDEA 开发工具中，打包后通过 boxrun 脚本启动时，conf 目录都会进入到 classpath 中。
+
+   c) 运行环境定义
+
+      运行服务的机器应该定义环境变量 BOX_ENV ,指定值为 dev、net等中的一个。
+      也可以在 java 启动选项中以 -DBOX_ENV=uat 的方式定义。（启动脚本 boxrun 中已有支持）
+      java 启动选项的优先级高于系统环境变量。
+
+      指定了 BOX_ENV 值，对应env/$BOX_ENV 目录下的配置就会生效，如果没有定义 BOX_ENV ，env/*/ 下的配置不会生效。
+
+      建议在 Linux 系统中每个运行环境固定登录用户名称，在该用户的 .bash_profile 中定义 BOX_ENV 环境变量。
+
+      例如：所有org环境服务，统一使用用户名 orguser 登录系统，在其 .bash_profile 中定义
+                    BOX_ENV=org
+                    export BOX_ENV
+           所有com环境服务，统一使用用户名 comuser 登录系统，以此类推。
+
+   d) srv-box 启动时默认会在conf/目录下找 srvbox.conf 文件，你可以通过命令行参数指定其他文件。
+      每个被装载的服务名称在 srvbox.conf 中定义，对应的同名配置文件必须在 conf 目录中。
+      BoxApp 启动时会检查 srvbox.conf 文件格式是否正确，需要启动的服务配置文件是否存在，格式不正确，
+      子服务配置不存在 BoxApp 都会退出。
+
+
+   e) srvbox.conf 和子服务的配置文件都会由 srv-box 装载，BOX_ENV指定的特定环境优先的功能会生效。
+      如果你的应用需要装载另外的配置文件，请混入 zzb.srvbox.EnvConfigLoader ,使用其 loadConfig
+      函数装载配置文件，这样才能启用特定环境优先功能。
+
+5. 运行与调试
+
+   5.1 启动参数
+     所有 基于srv-box 的应用入口点都是，zzb.srvbox.BoxApp，它支持的入口参数格式如下
+
+     zzb.srvbox.BoxApp [配置文件名称]  [服务1] [服务2] [服务3] ..
+
+     第一个参数是配置文件名称,如果指定将会替换 “srvbox.conf" , 配置文件名称的后缀".conf" 可写可不写。
+
+     后面的参数是将要启动的服务列表，服务名称是配置文件中包含的服务。如果指定的服务在配置文件中不存在，将被
+     忽略。
+
+   5.2 在 sbt 命令行中
+
+    执行 compile 命令可以编译;
+    执行 test 可以进行子模块的单元测试;
+    执行 run  命令可以以默认参数运行; run 命令后可以写上述命令行参数，会被传递给 BoxApp
+    执行 gen-idea 生成 idea 工程文件。
+
+   5.3 在 idea 中执行
+
+    sbt 的 gen-idea 命令不会为你生成 idea 中的运行配置，需要手工创建，非常简单。
+
+    在 idea 中创建新的 运行配置（工具栏代表”运行“的绿色按钮左边有个下拉框，点击选择”Edit Configurations",点击绿色“+”新建配置）,
+    运行配置类型选择"Application", "Main class" 设置为"zzb.srvbox.BoxApp","Use classpath of module" 选择你的 root project.
+
+    如果你不愿意同时运行多个服务，可以再创建一个运行配置，使用命令行参数指定你想运行的服务。
+
+6.  打包发布
+
+    在 sbt 命令行中执行 pack 命令，会在 root_project/target/pack 目录下生成发布所需要的所有文件，目录结构如下
+
+      pack/
+        conf/                -----  配置文件路径
+        deplib/              -----  所有非本工程生成的依赖包
+        lib/                 -----  本工程所有子模块生成的 jar 包
+        boxrun               -----  Linux 下的启动脚本
+        boxrun.bat           -----  Windows 下的启动脚本
+        VERSION              -----  版本信息
+
+      在该目录下执行 boxrun 服务就可以启动。后面可以跟 BoxApp 所需要的命令行参数。
+
+    在 sbt 命令行中执行 packz 命令，root_project/target 下生成发布的打包文件，文件名称包含 工程名称+版本号+日期时间，
+    例如：root_project-0.1-SNAPSHOT-2013.9.5-11_07.tar.gz
+
+
+
+
+
+
+

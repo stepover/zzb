@@ -1,0 +1,75 @@
+
+任务定义文件格式
+
+任务定义文件采用 typesafe (AKKA 开发商）conf 格式定义。示例如下：
+
+task {
+
+   demo = wash.shell.task.Task1  ; 这是一个示例的任务，分号后是任务的说明
+
+   mole {
+        list-car = wash.mole.ListCars  ; 列出所有车辆
+
+         car {
+
+            del-car = wosh.mole.DelCar  ; 删除某个车辆
+         }
+   }
+
+   cartype {
+        list-car = car.type.ListCars ; 列出车型库中的所有车辆
+   }
+}
+
+
+要点说明：
+
+ 1· 所有任务定义必须在 task{ } 范围内定义
+ 2. 任务支持名字空间，task{} 内的直接任务在默认名字空间 "_" 中, 可以用 spacename{}
+    格式依次嵌套名字空间。
+
+    每一个任务的 “ 全名 = 名字空间 + 短名称 ”，每个字符中间用 "." 隔开。
+    上述例子定义了如下任务全名：
+
+    _.demo
+    mole.list-car
+    mole.car.del-car
+    cartype.list-car
+
+    全名的最后一段为"短名称"
+
+ 3. 多个任务的全名不能重复（如果重复，程序启动时解析会报错），短名称可以重复
+
+ 4. 在 shell 中输入 短名称即可运行，如果短名称有重复，会有提示，再输入全名即可执行。
+
+ 5. 分号前为任务类型名称，分号后为任务描述。
+
+shell 中实现了三个缺省任务：
+
+ 1. exit  , 退出.
+
+ 2. tasks , 列出系统中的所有任务
+
+ 3. 以”*“结尾的字符串，会列出以给定字符序列开头的所有命令短名称。例如：输入 "ta*"回车，会列出
+    所有以”ta“开头的任务 。 （其实是一个土鳖的自动补全功能，本来应该用tab键，没做出来，以后再改。
+
+配置文件装载：
+
+    wash-shell 库本身并不管从哪个配置文件装载命令。
+    Task 伴生对象的 parseConfig 的输入参数是一个Config，是一个符合上述规范的Config配置段。
+    参见wash-main 的 WashApp
+
+Shell 启动：
+
+    使用 wash-shell 库启动 shell 非常简单
+
+     import wash.shell.Shell
+
+     Shell("wash", "wash-data").commandLoop
+
+     Shell工厂方法的第一个参数是命令行提示符，第二个参数是应用的名称。
+     commandLoop 方法启动命令循环。
+
+     shell启动后，前面提到的三个任务就默认已经装载。
+     你自己的任务应该在启动Shell之前调用 Task.parseConfig() 方法加载。
+

@@ -1,0 +1,16 @@
+<configuration debug="false">
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern> %date{ISO8601} %-5level %logger{16} [t:%-3.13X{sourceThread}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name ="zzb.xmpp.XRoom" level = "debug">
+        <appender-ref ref="STDOUT" />
+    </logger>
+
+    <root level="debug">
+        <!--<appender-ref ref="STDOUT" />-->
+    </root>
+</configuration>

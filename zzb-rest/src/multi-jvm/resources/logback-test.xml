@@ -1,0 +1,16 @@
+<configuration debug="false">
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern> %date{ISO8601} %-5level %logger{16} [t:%-3.3X{sourceThread}][h:%-3.5X{herit}][p:%-3.5X{pid}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="zzb" level = "debug">
+        <appender-ref ref="STDOUT" />
+    </logger>
+
+    <root level="warning">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>

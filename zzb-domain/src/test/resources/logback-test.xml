@@ -1,0 +1,33 @@
+<configuration debug="false">
+
+    <!--turboFilter class="ch.qos.logback.classic.turbo.MDCFilter">
+        <MDCKey>herit</MDCKey>
+        <Value>dom</Value>
+        <OnMatch>ACCEPT</OnMatch>
+    </turboFilter-->
+
+    <!--turboFilter class="ch.qos.logback.classic.turbo.MDCFilter">
+        <MDCKey>herit</MDCKey>
+        <Value>fsm</Value>
+        <OnMatch>DENY</OnMatch>
+    </turboFilter-->
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!--filter class="zzb.util.log.MDCFilter" >
+            <MDCKey>herit</MDCKey>
+            <Value>fsm</Value>
+            <OnMatch>DENY</OnMatch>
+        </filter-->
+        <encoder>
+            <pattern> %date{ISO8601} %-5level %logger{16} [t:%-3.3X{sourceThread}][h:%-3.3X{herit}][op:%-8X{opt}][ow:%X{owner}][pid:%X{pid}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="zzb" level = "debug">
+        <appender-ref ref="STDOUT" />
+    </logger>
+
+    <root level="error">
+
+    </root>
+</configuration>

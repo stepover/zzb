@@ -1,0 +1,92 @@
+package zzb.rest
+package directives
+
+import shapeless._
+
+trait AnyParamDirectives {
+  /**
+   * Extracts a parameter either from a form field or from query parameters (in that order), and passes the value(s)
+   * to the inner route.
+   *
+   * Rejects the request if both form field and query parameter matcher(s) defined by the definition(s) don't match.
+   */
+  /* directive */ def anyParam(apdm: AnyParamDefMagnet): apdm.Out = apdm()
+
+  /**
+   * Extracts a parameter either from a form field or from query parameters (in that order), and passes the value(s)
+   * to the inner route.
+   *
+   * Rejects the request if both form field and query parameter matcher(s) defined by the definition(s) don't match.
+   */
+  /* directive */ def anyParams(apdm: AnyParamDefMagnet): apdm.Out = apdm()
+}
+
+object AnyParamDirectives extends AnyParamDirectives
+
+trait AnyParamDefMagnet {
+  type Out
+  def apply(): Out
+}
+
+object AnyParamDefMagnet {
+  private type APDM2Tuple1[T] = AnyParamDefMagnet2[Tuple1[T]]
+
+  private def apply[T](value: T)(implicit apdm2Tuple1: APDM2Tuple1[T]) =
+    new AnyParamDefMagnet {
+      type Out = apdm2Tuple1.Out
+      def apply() = apdm2Tuple1(Tuple1(value))
+    }
+
+  implicit def forString[T <: String](value: T)(implicit apdm2: APDM2Tuple1[T]) = apply(value)
+  implicit def forSymbol[T <: Symbol](value: T)(implicit apdm2: APDM2Tuple1[T]) = apply(value)
+  implicit def forNR[T <: NameReceptacle[_]](value: T)(implicit apdm2: APDM2Tuple1[T]) = apply(value)
+  implicit def forNDesR[T <: NameDeserializerReceptacle[_]](value: T)(implicit apdm2: APDM2Tuple1[T]) = apply(value)
+  implicit def forNDefR[T <: NameDefaultReceptacle[_]](value: T)(implicit apdm2: APDM2Tuple1[T]) = apply(value)
+  implicit def forNDesDefR[T <: NameDeserializerDefaultReceptacle[_]](value: T)(implicit apdm2: APDM2Tuple1[T]) = apply(value)
+
+  implicit def forTuple[T <: Product](value: T)(implicit apdm21: AnyParamDefMagnet2[T]) =
+    new AnyParamDefMagnet {
+      type Out = apdm21.Out
+      def apply() = apdm21(value)
+    }
+}
+
+trait AnyParamDefMagnet2[T] {
+  type Out
+  def apply(value: T): Out
+}
+
+object AnyParamDefMagnet2 {
+  import FieldDefMagnet2.FieldDefMagnetAux
+  import ParamDefMagnet2.ParamDefMagnetAux
+
+  implicit def forTuple[T <: Product, L <: HList, Out](implicit hla: HListerAux[T, L],
+                                                       apdma: AnyParamDefMagnet2[L]) =
+    new AnyParamDefMagnet2[T] {
+      def apply(value: T) = apdma(hla(value))
+      type Out = apdma.Out
+    }
+
+  implicit def forHList[L <: HList](implicit f: LeftFolder[L, Directive0, MapReduce.type]) =
+    new AnyParamDefMagnet2[L] {
+      type Out = f.Out
+      def apply(value: L) = {
+        value.foldLeft(BasicDirectives.noop)(MapReduce)
+      }
+    }
+
+  object MapReduce extends Poly2 {
+    implicit def from[T, LA <: HList, LB <: HList, Out <: HList](implicit fdma: FieldDefMagnetAux[T, Directive[LB]],
+                                                                 pdma: ParamDefMagnetAux[T, Directive[LB]],
+                                                                 ev: PrependAux[LA, LB, Out]) = {
+
+      // see https://groups.google.com/forum/?fromgroups=#!topic/spray-user/HGEEdVajpUw
+      def fdmaWrapper(t: T): Directive[LB] = fdma(t).hflatMap {
+        case None :: HNil ⇒ pdma(t)
+        case x            ⇒ BasicDirectives.hprovide(x)
+      }
+
+      at[Directive[LA], T] { (a, t) ⇒ a & (fdmaWrapper(t) | pdma(t)) }
+    }
+  }
+}

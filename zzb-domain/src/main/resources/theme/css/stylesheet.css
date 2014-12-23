@@ -1,0 +1,23 @@
+/*reset*/
+*{ margin:0; padding:0;font-family:Arial, Helvetica, sans-serif; }
+body{ font-size:100%;}
+li{ list-style:none;}
+a{ color:#06c; text-decoration:none;}
+/*main*/
+
+.header{ background:#444;}
+.header .subTitle{ font-size:1em; padding:10px; color:#fff;}
+.header .title{ background:#1675D3; padding:10px; font-size:1em; color:#fff;}
+.header .title a{ color:#ccc;}
+
+.inheritance{ background:#f7f7f7; padding:5px 10px; font-size:12px;}
+.inheritance ul li{ border-left:1px solid #c2c2c2; padding-left:10px; margin-left:10px;}
+
+.contentContainer{ padding:20px;}
+.summary{ border:1px solid #c2c2c2; background:#f7f7f7; box-shadow:#ccc 0px 0px 5px;}
+.summary .blockList h3{ padding:10px; color:#888; font-size:1em}
+.summary .blockList table.overviewSummary{ width:100%;font-size:.8em}
+.summary .blockList table th{ background:#06c; color:#fff; text-align:left; padding:5px 0; width:10%; text-indent:.5em;}
+.summary .blockList table td{ background:#fff; color:#444; text-align:left; padding:5px 0; border-top:1px solid #ececec; text-indent:.5em;}
+.summary .blockList table tr:hover td{background:#f7f7f7;}
+.summary .blockList caption{ text-align:left; padding:5px; background:#444; color:#fff}
