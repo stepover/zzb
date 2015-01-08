@@ -6,11 +6,6 @@ resolvers += "Typesafe Repository" at "http://repo.akka.io/releases/"
 
 resolvers += "Spray Repository" at "http://repo.spray.io/"
 
-resolvers += Resolver.url(
-  "sbt-plugin-releases",
-  new URL("http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/")
-)(Resolver.ivyStylePatterns)
-
 libraryDependencies ++= Seq(
   "com.decodified" % "scala-ssh" % "0.6.2",
   "org.bouncycastle" % "bcprov-jdk16" % "1.46",
@@ -32,4 +27,9 @@ addSbtPlugin("io.spray" % "sbt-twirl" % "0.7.0")
 //支持aws s3 发布的插件
 addSbtPlugin("com.frugalmechanic" % "fm-sbt-s3-resolver" % "0.4.0")
 
-addSbtPlugin("com.github.gseitz" % "sbt-release" % "0.8.5")
+resolvers += Resolver.url(
+  "bintray-sbt-plugin-releases",
+  url("http://dl.bintray.com/content/sbt/sbt-plugin-releases"))(
+    Resolver.ivyStylePatterns)
+
+addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.2")
