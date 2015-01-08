@@ -6,6 +6,11 @@ resolvers += "Typesafe Repository" at "http://repo.akka.io/releases/"
 
 resolvers += "Spray Repository" at "http://repo.spray.io/"
 
+resolvers += Resolver.url(
+  "sbt-plugin-releases",
+  new URL("http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/")
+)(Resolver.ivyStylePatterns)
+
 libraryDependencies ++= Seq(
   "com.decodified" % "scala-ssh" % "0.6.2",
   "org.bouncycastle" % "bcprov-jdk16" % "1.46",
