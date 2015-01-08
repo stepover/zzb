@@ -95,6 +95,7 @@ object Build extends Build {
   lazy val zzbRestTestKit = Project("zzb-rest-testkit", file("zzb-rest-testkit"))
     .dependsOn(zzbRest,zzbUtil)
     .settings(zzbModuleSettings: _*)
+
     .settings(libraryDependencies ++=
     compile(akkaTestKit, akkaActor, scalatest, specs2, shapeless))
   //

@@ -6,7 +6,7 @@ import org.sbtidea.SbtIdeaPlugin._
 import com.typesafe.sbt.{SbtScalariform, SbtMultiJvm}
 import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys._
 
-
+import bintray.Plugin._
 
 object BuildSettings {
   val VERSION = "0.1.0"
@@ -72,6 +72,7 @@ object BuildSettings {
   lazy val zzbModuleSettings =
     basicSettings ++
       NightlyBuildSupport.settings ++
+      bintraySettings ++ bintrayPublishSettings ++
       net.virtualvoid.sbt.graph.Plugin.graphSettings ++
       seq(
         // scaladoc settings

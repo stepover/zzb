@@ -1,7 +1,7 @@
 组织部
 ===
 
-Restful framework base on Scala,Akka,Spary
+Restful framework base on Scala,Akka,Spray
 
 “组织部” 是一系列工具的集合，主要功能：
 
