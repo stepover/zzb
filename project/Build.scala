@@ -33,6 +33,7 @@ object Build extends Build {
   lazy val zzbBox = Project("zzb-box", file("zzb-box"))
     .dependsOn(envConfig, dbAccess, zzbShell, zzbRest,zzbUtil)
     .settings(zzbModuleSettings: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(akkaActor, akkaRemote, sprayCan, sprayRouting, sprayJson, scalaloggingSlf4j) ++
       test(scalatest, h2, akkaTestKit, mysqlDriver) ++
@@ -42,6 +43,7 @@ object Build extends Build {
 
   lazy val envConfig = Project("zzb-config", file("zzb-config"))
     .settings(zzbModuleSettings: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(config) ++
       test(scalatest) ++
@@ -52,6 +54,7 @@ object Build extends Build {
     .dependsOn(zzbDatatype)
     .settings(zzbModuleSettings: _*)
     .settings(disableParallelTestSetting: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(config, c3p0, squeryl, scalaloggingSlf4j,casbah,bonecp,sclick,sclickEx) ++
       test(scalatest, h2) ++
@@ -61,6 +64,7 @@ object Build extends Build {
     .dependsOn(envConfig,zzbUtil)
     .settings(zzbModuleSettings: _*)
     .settings(disableParallelTestSetting: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(scalaloggingSlf4j, logback, nScalaTime, config, akkaActor, akkaRemote, sprayCaching) ++
       test(scalatest, akkaTestKit) ++
@@ -69,6 +73,7 @@ object Build extends Build {
 
   lazy val zzbDatatype = Project("zzb-datatype", file("zzb-datatype"))
     .settings(zzbModuleSettings: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(nScalaTime, scalaReflect, sprayJson, quasiQuotes) ++
       test(scalatest, specs2, sprayRouting, sprayTestkit) ++
@@ -77,6 +82,7 @@ object Build extends Build {
   lazy val zzbRest = Project("zzb-rest", file("zzb-rest"))
     .dependsOn(zzbDatatype,zzbUtil)
     .settings(zzbModuleMultiJvmSettings: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(nScalaTime, sprayRouting, akkaActor, akkaRemote, sprayJson, sprayCaching,scalaReflect, quasiQuotes) ++
       test(scalatest, specs2, akkaTestKit, sprayTestkit, akkaRemoteTest) ++
@@ -86,6 +92,7 @@ object Build extends Build {
   lazy val zzbStorage = Project("zzb-storage", file("zzb-storage"))
     .dependsOn(zzbDatatype,zzbUtil,dbAccess)
     .settings(zzbModuleSettings: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(casbah, sprayCaching, akkaActor, scalaStm) ++
       test(scalatest) ++
@@ -95,6 +102,7 @@ object Build extends Build {
   lazy val zzbRestTestKit = Project("zzb-rest-testkit", file("zzb-rest-testkit"))
     .dependsOn(zzbRest,zzbUtil)
     .settings(zzbModuleSettings: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(akkaTestKit, akkaActor, scalatest, specs2, shapeless))
   //
@@ -104,12 +112,14 @@ object Build extends Build {
     .dependsOn(zzbRest, zzbRestTestKit,zzbUtil)
     .settings(zzbModuleSettings: _*)
     .settings(noPublishing: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++= test(sprayJson, specs2, akkaActor))
 
   lazy val zzbDomain = Project("zzb-domain", file("zzb-domain"))
     .dependsOn(zzbRest, zzbDatatype, zzbStorage,zzbUtil)
     .settings(zzbModuleSettings: _*)
     .settings(Twirl.settings: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(akkaActor, akkaRemote, scalaloggingSlf4j, nScalaTime) ++
       test(scalatest, akkaTestKit, sprayTestkit) ++
@@ -117,6 +127,7 @@ object Build extends Build {
     )
   lazy val zzbUtil = Project("zzb-util", file("zzb-util"))
     .settings(zzbModuleSettings: _*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(  scalaloggingSlf4j,logback,nScalaTime,sprayUtil) ++
       provided(akkaActor, scalaReflect) ++
@@ -126,6 +137,7 @@ object Build extends Build {
   lazy val zzbXmpp = Project("zzb-xmpp", file("zzb-xmpp"))
     .settings(zzbModuleSettings: _*)
     .settings(disableParallelTestSetting:_*)
+    .settings(releaseSettings: _*)
     .settings(libraryDependencies ++=
     compile(scalaloggingSlf4j,nScalaTime,smackTcp,akkaActor,smackCore,smackExts,sprayUtil) ++
       test(scalatest,akkaTestKit) ++
