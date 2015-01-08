@@ -14,6 +14,15 @@ Restful framework base on Scala,Akka,Spray
 既然这个项目主要是用于服务端工程组织，Restful架构实现的，就叫“组织部”吧，绝对够特色。
 也许哪天我再写个前端框架，那就可以叫“宣传部"了。
 
+项目当前版本是: 0.1.0
+
+在项目中添加依赖
+
+    resolvers += "zzb" at "http://dl.bintray.com/lshoo36/maven"
+
+    libraryDependencies ++= Seq(
+        "me.stepover" % "zzb-util_2.10" % "0.1.0"
+    )
 
 zzb-box
 -------
@@ -59,3 +68,11 @@ zzb-util
 zzb-xmpp
 --------
     XMPP 的Scala包装，基于 eventbus 实现了一个简单易用的xmpp库，支持基本的私聊，进房间，房间内私聊等功能。
+
+在项目中添加依赖
+
+    resolvers += "zzb" at "http://dl.bintray.com/lshoo36/maven"
+
+    libraryDependencies ++= Seq(
+        "me.stepover" % "zzb-util_2.10" % "0.1.0",
+    )

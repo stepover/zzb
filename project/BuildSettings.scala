@@ -7,6 +7,7 @@ import com.typesafe.sbt.{SbtScalariform, SbtMultiJvm}
 import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys._
 
 import bintray.Plugin._
+import bintray.Keys._
 
 object BuildSettings {
   val VERSION = "0.1.0"
@@ -18,8 +19,10 @@ object BuildSettings {
     organizationHomepage := Some(new URL("http://zzb.stepover.me")),
     description := "Restful framework base on Scala,Akka,Spary",
     startYear := Some(2013),
-    //    licenses              := Seq("Apache 2" -> new URL("http://www.apache.org/licenses/LICENSE-2.0.txt")),
+    licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     scalaVersion := "2.10.4",
+    publishMavenStyle := true,
+    repository in bintray := "maven",
     resolvers ++= Dependencies.resolutionRepos,
     scalacOptions := Seq(
       "-encoding", "utf8",
@@ -63,7 +66,7 @@ object BuildSettings {
 
   lazy val disableParallelTestSetting = seq(parallelExecution in Test := false)
 
-   val publishRoot = "s3://s3.cn-north-1.amazonaws.com.cn/repo/"
+   //val publishRoot = "s3://s3.cn-north-1.amazonaws.com.cn/repo/"
    val publishSnap = "snapshot/"
    val publishRelease = "release/"
    val publishNightly = "nightly/"
@@ -78,9 +81,9 @@ object BuildSettings {
         // scaladoc settings
         (scalacOptions in doc) <++= (name, version).map {
           (n, v) => Seq("-doc-title", n, "-doc-version", v)
-        },
+        } //,
         // publishing
-        crossPaths := false,
+        /*crossPaths := false,
         publishMavenStyle := true,
         publishTo <<= version {
           version =>
@@ -94,7 +97,7 @@ object BuildSettings {
                 }
               }
             }
-        }
+        }*/
       )
 
   lazy val noPublishing = seq(
@@ -201,6 +204,5 @@ object BuildSettings {
 
   lazy val exampleBoxedServiceSettings = exampleSettings ++ boxedServiceSettings ++
     seq(parallelExecution in Test := false)
-
 
 }

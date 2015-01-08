@@ -25,7 +25,7 @@ addSbtPlugin("com.typesafe.sbt" % "sbt-multi-jvm" % "0.3.8")
 addSbtPlugin("io.spray" % "sbt-twirl" % "0.7.0")
 
 //支持aws s3 发布的插件
-addSbtPlugin("com.frugalmechanic" % "fm-sbt-s3-resolver" % "0.4.0")
+//addSbtPlugin("com.frugalmechanic" % "fm-sbt-s3-resolver" % "0.4.0")
 
 resolvers += Resolver.url(
   "bintray-sbt-plugin-releases",
