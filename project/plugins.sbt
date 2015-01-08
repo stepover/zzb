@@ -26,3 +26,5 @@ addSbtPlugin("io.spray" % "sbt-twirl" % "0.7.0")
 
 //支持aws s3 发布的插件
 addSbtPlugin("com.frugalmechanic" % "fm-sbt-s3-resolver" % "0.4.0")
+
+addSbtPlugin("com.github.gseitz" % "sbt-release" % "0.8.5")
