@@ -15,7 +15,7 @@ import scala.slick.driver.H2Driver.simple._
  * Copyright baoxian.com 2012~2020
  */
 class DBSlickTest extends WordSpec with MustMatchers with BeforeAndAfterEach with DBAccessSlick  {
-  val config = ConfigFactory.load("DBSupport")
+  val config = ConfigFactory.load("DBSupport2")
   //DBPools.openDB("firstdb", config.getConfig("db.firstdb"))
 
 
@@ -46,17 +46,19 @@ class DBSlickTest extends WordSpec with MustMatchers with BeforeAndAfterEach wit
       }
     }
   }
-
+  //
   override def beforeEach() = {
     DBPools.openDB("firstdb", config.getConfig("db.firstdb"))
     DBPools.openDB("seconddb", config.getConfig("db.seconddb"))
     transaction("firstdb"){implicit session =>
-      (users.ddl ++ companys.ddl).drop
       (users.ddl ++ companys.ddl).create
     }
   }
 
   override def afterEach() = {
+    transaction("firstdb"){implicit session =>
+      (users.ddl ++ companys.ddl).drop
+    }
     DBPools.closeAllDB()
   }
 

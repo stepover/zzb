@@ -20,7 +20,7 @@ object Build extends Build {
   // Root Project
   // -------------------------------------------------------------------------------------------------------------------
 
-  lazy val root = Project("srv-utils", file("."))
+  lazy val root = Project("zzb", file("."))
     .aggregate(zzbBox, envConfig, dbAccess, zzbShell, zzbDatatype, zzbStorage, zzbRest, zzbRestTests, zzbRestTestKit, zzbDomain,zzbUtil, zzbXmpp,examples)
     .settings(basicSettings: _*)
     .settings(noPublishing: _*)
