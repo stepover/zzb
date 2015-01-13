@@ -1,24 +1,21 @@
-组织部
+zzb
 ===
 
 Restful framework base on Scala,Akka,Spray
 
-“组织部” 是一系列工具的集合，主要功能：
+“zzb” 是一系列工具的集合，主要功能：
 
 * 服务配置模式的实现。一个服务容器(zzb-box),是一个独立的进程，多个独立的服务可以部署其中。也可以分别部署在不同的zzb-box中
 * 基于一套数据类型定义实现从存储到 restful api 的一站式支持(zzb-datatype,zzb-storage,zzb-rest,zzb-domain)
 * 为 zzb-box 提供远程shell管理的能力(zzb-shell)
 * 一个简单的xmpp包装器，用于支持xmpp机器人
 
-关于项目名称，一般项目名称都喜欢用地点、动物啥的。不过我都用中文写文档了，项目名称多少还是应该有点中国特色才好。
-既然这个项目主要是用于服务端工程组织，Restful架构实现的，就叫“组织部”吧，绝对够特色。
-也许哪天我再写个前端框架，那就可以叫“宣传部"了。
 
 项目当前版本是: 0.1.0
 
 在项目中添加依赖
 
-    resolvers += "zzb" at "http://dl.bintray.com/lshoo36/maven"
+    resolvers += "zzb" at "http://dl.bintray.com/stepover/maven"
 
     libraryDependencies ++= Seq(
         "me.stepover" % "zzb-util_2.10" % "0.1.0"
@@ -71,7 +68,7 @@ zzb-xmpp
 
 在项目中添加依赖
 
-    resolvers += "zzb" at "http://dl.bintray.com/lshoo36/maven"
+    resolvers += "zzb" at "http://dl.bintray.com/stepover/maven"
 
     libraryDependencies ++= Seq(
         "me.stepover" % "zzb-util_2.10" % "0.1.0",
