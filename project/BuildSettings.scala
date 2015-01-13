@@ -66,7 +66,6 @@ object BuildSettings {
 
   lazy val disableParallelTestSetting = seq(parallelExecution in Test := false)
 
-   //val publishRoot = "s3://s3.cn-north-1.amazonaws.com.cn/repo/"
    val publishSnap = "snapshot/"
    val publishRelease = "release/"
    val publishNightly = "nightly/"
@@ -81,24 +80,7 @@ object BuildSettings {
         // scaladoc settings
         (scalacOptions in doc) <++= (name, version).map {
           (n, v) => Seq("-doc-title", n, "-doc-version", v)
-        } //,
-        // publishing
-        /*crossPaths := false,
-        publishMavenStyle := true,
-        publishTo <<= version {
-          version =>
-            Some {
-              "zzb nexus" at {
-                // public uri is repo.spray.io, we use an SSH tunnel to the nexus here
-                publishRoot + {
-                  if (version.trim.endsWith("SNAPSHOT")) publishSnap
-                  else
-                  if (NightlyBuildSupport.isNightly) publishNightly else publishRelease
-                }
-              }
-            }
-        }*/
-      )
+        }
 
   lazy val noPublishing = seq(
     publish :=(),
