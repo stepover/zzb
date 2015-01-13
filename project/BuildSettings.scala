@@ -66,6 +66,7 @@ object BuildSettings {
 
   lazy val disableParallelTestSetting = seq(parallelExecution in Test := false)
 
+   //val publishRoot = "s3://s3.cn-north-1.amazonaws.com.cn/repo/"
    val publishSnap = "snapshot/"
    val publishRelease = "release/"
    val publishNightly = "nightly/"
@@ -81,6 +82,7 @@ object BuildSettings {
         (scalacOptions in doc) <++= (name, version).map {
           (n, v) => Seq("-doc-title", n, "-doc-version", v)
         }
+      )
 
   lazy val noPublishing = seq(
     publish :=(),
