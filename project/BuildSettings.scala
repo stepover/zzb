@@ -66,7 +66,6 @@ object BuildSettings {
 
   lazy val disableParallelTestSetting = seq(parallelExecution in Test := false)
 
-   //val publishRoot = "s3://s3.cn-north-1.amazonaws.com.cn/repo/"
    val publishSnap = "snapshot/"
    val publishRelease = "release/"
    val publishNightly = "nightly/"
@@ -91,10 +90,7 @@ object BuildSettings {
 
   lazy val defaultMultiJvmOptions: Seq[String] = {
     import scala.collection.JavaConverters._
-    // multinode.D= and multinode.X= makes it possible to pass arbitrary
-    // -D or -X arguments to the forked jvm, e.g.
-    // -Dmultinode.Djava.net.preferIPv4Stack=true -Dmultinode.Xmx512m -Dmultinode.XX:MaxPermSize=256M
-    // -DMultiJvm.akka.cluster.Stress.nrOfNodes=15
+
     val MultinodeJvmArgs = "multinode\\.(D|X)(.*)".r
     val knownPrefix = Set("multnode.", "akka.", "MultiJvm.")
     val akkaProperties = System.getProperties.propertyNames.asScala.toList.collect {
