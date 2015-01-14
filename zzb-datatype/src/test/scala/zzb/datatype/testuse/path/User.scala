@@ -26,6 +26,8 @@ object User extends TStruct {
   val birthDay = Field(TDateTime("birthday", "初生日期"))
   val male = Field(TBoolean("male", "性别"))
 
+  import BasicFormats._
+  val Phones = TList[Int]("phones","电话号码")
   val phones = Field(Phones)
 
   val misc = FieldMap(TProperty("misc","杂项"),default = TProperty.empty)
@@ -35,12 +37,11 @@ object User extends TStruct {
 
   val t_memo_ : String = "用户信息"
 
-  implicit def packWrap(p: Pack) = new PackWrap(p)
+  implicit def packWrap(p: Pack): PackWrap = new PackWrap(p)
 
   class PackWrap(p: Pack) {
     def name = p(User.name).get.value
   }
-
 }
 
 object Student extends TStruct {
