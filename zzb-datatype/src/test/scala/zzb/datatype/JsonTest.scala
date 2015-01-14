@@ -56,6 +56,27 @@ class JsonTest extends WordSpec with MustMatchers {
       println(u1Json)
 
       serializeTest(u1)
+      val jstr =
+        """
+          |{
+          |  "birthday": "1999-11-22 00:00:00.000",
+          |  "driverAge": 7,
+          |  "bloodType": {
+          |    "idx": 1,
+          |    "name": "A"
+          |  },
+          |  "male": "真",
+          |  "userAge": "39",
+          |  "verInfo": {
+          |    "ver": 0
+          |  },
+          |  "userName": "simon"
+          |}
+        """.stripMargin
+
+      val u11 = UserInfo.fromJsValue(JsonParser(jstr))
+
+      u1 mustBe u11
     }
   }
 

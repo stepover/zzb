@@ -3,7 +3,8 @@ package zzb.datatype
 import java.util.concurrent.atomic.AtomicReference
 
 import com.github.nscala_time.time.Imports
-import spray.json.DefaultJsonProtocol._
+//import spray.json.DefaultJsonProtocol._
+import BasicJsonFormats._
 import spray.json._
 import zzb.datatype.meta.EnumTypeInfo
 
@@ -19,14 +20,12 @@ import scala.reflect._
  * Copyright baoxian.com 2012~2020
  */
 
-object BasicFormats extends BasicFormats
-
 trait TString extends TMono[String] {
 
   val vtm = classTag[String]
 
   def parse(str: String): Pack = Pack(str)
-  implicit val valueFormat = StringJsonFormat
+  implicit val valueFormat = TStringJsonFormat
 }
 
 object TString extends TString {
@@ -42,7 +41,7 @@ trait TInt extends TMono[Int] {
   val vtm = classTag[Int]
   def parse(str: String): Pack = Pack(str.toInt)
 
-  implicit val valueFormat = IntJsonFormat
+  implicit val valueFormat = TIntJsonFormat
 }
 
 object TInt extends TInt {
@@ -57,7 +56,7 @@ object TInt extends TInt {
 trait TLong extends TMono[Long] {
   val vtm = classTag[Long]
   def parse(str: String): Pack = Pack(str.toLong)
-  implicit val valueFormat = LongJsonFormat
+  implicit val valueFormat = TLongJsonFormat
 }
 
 object TLong extends TLong {
@@ -72,7 +71,7 @@ object TLong extends TLong {
 trait TShort extends TMono[Short] {
   val vtm = classTag[Short]
   def parse(str: String): Pack = Pack(str.toShort)
-  implicit val valueFormat = ShortJsonFormat
+  implicit val valueFormat = TShortJsonFormat
 }
 
 object TShort extends TShort {
@@ -86,7 +85,7 @@ object TShort extends TShort {
 trait TByte extends TMono[Byte] {
   val vtm = classTag[Byte]
   def parse(str: String): Pack = Pack(str.toByte)
-  implicit val valueFormat = ByteJsonFormat
+  implicit val valueFormat = TByteJsonFormat
 }
 
 object TByte extends TByte {
@@ -100,7 +99,7 @@ object TByte extends TByte {
 trait TDouble extends TMono[Double] {
   val vtm = classTag[Double]
   def parse(str: String): Pack = Pack(str.toDouble)
-  implicit val valueFormat = DoubleJsonFormat
+  implicit val valueFormat = TDoubleJsonFormat
 }
 
 object TDouble extends TDouble {
@@ -114,7 +113,7 @@ object TDouble extends TDouble {
 trait TFloat extends TMono[Float] {
   val vtm = classTag[Float]
   def parse(str: String): Pack = Pack(str.toFloat)
-  implicit val valueFormat = FloatJsonFormat
+  implicit val valueFormat = TFloatJsonFormat
 }
 
 object TFloat extends TFloat {
@@ -128,7 +127,7 @@ object TFloat extends TFloat {
 trait TBigDecimal extends TMono[BigDecimal] {
   val vtm = classTag[BigDecimal]
   def parse(str: String): Pack = Pack(BigDecimal.apply(str))
-  implicit val valueFormat = BigDecimalJsonFormat
+  implicit val valueFormat = TBigDecimalJsonFormat
 }
 
 object TBigDecimal extends TBigDecimal {
@@ -211,9 +210,9 @@ object TDateTime extends TDateTime {
 trait TBoolean extends TMono[Boolean] {
   val vtm = classTag[Boolean]
 
-  def YesTexts = List("true", "True", "TRUE", "Y", "y", "YES", "yes", "1", "是", "有")
+  def YesTexts = List("true", "True", "TRUE", "Y", "y", "YES", "yes", "1", "是", "有","真")
 
-  def NoTexts = List("false", "False", "FALSE", "N", "n", "No", "no", "0", "否", "无", "非", "空", "")
+  def NoTexts = List("false", "False", "FALSE", "N", "n", "No", "no", "0", "否", "无", "非", "空", "假","")
 
   val YesName = "true"
 
@@ -240,7 +239,7 @@ trait TBoolean extends TMono[Boolean] {
   implicit def boolPack2String(i: Pack): String = if (i.value) YesName else NoName
 
   override protected def packToString(i: ValuePack[Boolean]): String = if (i.value) YesName else NoName
-  implicit val valueFormat = BooleanJsonFormat
+  implicit val valueFormat = TBooleanJsonFormat
 }
 
 object TBoolean extends TBoolean {
