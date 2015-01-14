@@ -71,10 +71,12 @@ object BuildSettings {
    val publishNightly = "nightly/"
 
 
-  lazy val zzbModuleSettings =
+  val bintray_user = scala.util.Properties.propOrElse("bintray_user",
+    scala.util.Properties.envOrElse("bintray_user", ""))
+
+  lazy val zzbModuleSettingsBase =
     basicSettings ++
       NightlyBuildSupport.settings ++
-      bintraySettings ++ bintrayPublishSettings ++
       net.virtualvoid.sbt.graph.Plugin.graphSettings ++
       seq(
         // scaladoc settings
@@ -82,6 +84,8 @@ object BuildSettings {
           (n, v) => Seq("-doc-title", n, "-doc-version", v)
         }
       )
+
+  lazy val zzbModuleSettings = if(bintray_user.size>0) zzbModuleSettingsBase ++ bintraySettings else zzbModuleSettingsBase
 
   lazy val noPublishing = seq(
     publish :=(),
