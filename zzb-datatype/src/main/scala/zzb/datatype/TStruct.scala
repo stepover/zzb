@@ -2,7 +2,7 @@ package zzb.datatype
 
 import java.io.{ObjectInputStream, ObjectOutputStream}
 import java.util.concurrent.atomic.AtomicReference
-
+import scala.language.implicitConversions
 import spray.json._
 import zzb.datatype.meta.{FieldDesc, TypeInfo}
 
@@ -328,7 +328,7 @@ trait TStruct extends DataType[StructValue] {
 
   // <editor-fold defaultstate="collapsed" desc="支持默认值的字段定义 ">
 
-  implicit def funcToByName[T](func: () => T) = func()
+  implicit def funcToByName[T](func: () => T): T = func()
 
   protected final def FieldStruct[T <: TStruct](dt: T, isRequired: Boolean = false, default: => T#Pack = null): () => T = {
     val dtFun = Field(dt, isRequired)
@@ -434,11 +434,11 @@ trait TStruct extends DataType[StructValue] {
   // </editor-fold>
 
 
-  implicit def fieldFunc2FieldType[T <: DataType[Any]](func: () => T) = func()
+  implicit def fieldFunc2FieldType[T <: DataType[Any]](func: () => T): T = func()
 
   implicit def CompoundPack(i: Pack): StructValue = i.value
 
-  implicit def value2Pack(v: StructValue) = makeValuePackWithDefault(v.values)
+  implicit def value2Pack(v: StructValue): TStruct.this.type#Pack = makeValuePackWithDefault(v.values)
 
   def validators: List[Pack => Option[String]] = List(RequireFieldValidator)
 

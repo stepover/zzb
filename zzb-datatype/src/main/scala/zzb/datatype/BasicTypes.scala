@@ -1,12 +1,15 @@
 package zzb.datatype
 
-import spray.json._
-import DefaultJsonProtocol._
-import scala.reflect.runtime.universe._
-import scala.reflect._
-import zzb.datatype.meta.{EnumTypeInfo, TypeInfo}
 import java.util.concurrent.atomic.AtomicReference
+
+import com.github.nscala_time.time.Imports
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import zzb.datatype.meta.EnumTypeInfo
+
 import scala.annotation.tailrec
+import scala.language.implicitConversions
+import scala.reflect._
 
 /**
  * Created with IntelliJ IDEA.
@@ -151,10 +154,10 @@ trait TDateTime extends TMono[DateTime] {
 
   override protected def packToString(i: ValuePack[DateTime]): String = i.value.toString("YYYY-MM-dd HH:mm:ss")
 
-  implicit def dataPack2DateTime(i: Pack) = i.value
+  implicit def dataPack2DateTime(i: Pack): Imports.DateTime = i.value
 
 
-  implicit def dataPack2String(i: Pack)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss") = format(i)(pattern)
+  implicit def dataPack2String(i: Pack)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss"): String = format(i)(pattern)
 
 
   implicit def string2DatePack(dateTimeStr: String)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss"): Pack = {
@@ -269,33 +272,33 @@ trait TEnum extends TMono[EnumIdx] {
 
   override def parse(str: String): Pack = name2EnumPack(str)
 
-  implicit def int2EnumValue(id: Int) = this.apply(id)
+  implicit def int2EnumValue(id: Int): TEnum.this.type#Value = this.apply(id)
 
-  implicit def name2EnumValue(name: String) = this.withName(name)
+  implicit def name2EnumValue(name: String): TEnum.this.type#Value = this.withName(name)
 
   implicit def int2EnumPack(id: Int): Pack = Pack(EnumIdx(id))
 
   implicit def name2EnumPack(name: String): Pack = Pack(EnumIdx(this.withName(name).id))
 
-  implicit def enumValue2Int(ev: this.type#Value) = ev.id
+  implicit def enumValue2Int(ev: this.type#Value): Int = ev.id
 
-  implicit def enumValue2Name(ev: this.type#Value) = ev.toString
+  implicit def enumValue2Name(ev: this.type#Value): String = ev.toString
 
-  implicit def int2Name(id: Int) = this.apply(id).toString
+  implicit def int2Name(id: Int): String = this.apply(id).toString
 
-  implicit def enumValue2Pack(ev: this.type#Value) = Pack(EnumIdx(ev.id))
+  implicit def enumValue2Pack(ev: this.type#Value): TEnum.this.type#Pack = Pack(EnumIdx(ev.id))
 
   //implicit def Packe2EnumValue(ev: this.type#Value) = Pack(EnumIdx(ev.id))
 
-  implicit def enumPack2Int(ei: Pack) = ei.value.idx
+  implicit def enumPack2Int(ei: Pack): Int = ei.value.idx
 
-  implicit def enumPack2Name(ei: Pack) = this.apply(ei.value.idx).toString
+  implicit def enumPack2Name(ei: Pack): String = this.apply(ei.value.idx).toString
 
-  implicit def enumPack2EnumValue(ei: Pack) = this(ei.value.idx)
+  implicit def enumPack2EnumValue(ei: Pack): (TEnum with Enumeration)#Value = this(ei.value.idx)
 
-  implicit def EnumIdx2EnumValue(idx: EnumIdx) = this(idx.idx)
+  implicit def EnumIdx2EnumValue(idx: EnumIdx): (TEnum with Enumeration)#Value = this(idx.idx)
 
-  implicit def EnumValue2EnumIdx(ev: this.type#Value) = EnumIdx(ev.id)
+  implicit def EnumValue2EnumIdx(ev: this.type#Value): EnumIdx = EnumIdx(ev.id)
 
   implicit val valueFormat = EnumIdxFormat
 

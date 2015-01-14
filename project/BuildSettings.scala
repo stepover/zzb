@@ -10,7 +10,7 @@ import bintray.Plugin._
 import bintray.Keys._
 
 object BuildSettings {
-  val VERSION = "0.1.0"
+  val VERSION = "0.1.1a1"
 
   lazy val repo =  if (VERSION.endsWith("SNAPSHOT")) "snapshot" else "release"
 
@@ -81,6 +81,7 @@ object BuildSettings {
       NightlyBuildSupport.settings ++
       net.virtualvoid.sbt.graph.Plugin.graphSettings ++
       seq(
+      //  parallelExecution in Test := false,
         // scaladoc settings
         (scalacOptions in doc) <++= (name, version).map {
           (n, v) => Seq("-doc-title", n, "-doc-version", v)

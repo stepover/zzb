@@ -8,6 +8,7 @@ import scala.collection.GenTraversableOnce
 import spray.json._
 import scala.reflect._
 import zzb.datatype.meta.{ListTypeInfo, TypeInfo}
+import scala.language.implicitConversions
 
 /**
  * Created with IntelliJ IDEA.
@@ -43,7 +44,7 @@ trait TList[T] extends DataType[List[T]] {
     case _ => None
   }
 
-  implicit def value2Pack(v: List[T]) = Pack(v)
+  implicit def value2Pack(v: List[T]): TList.this.type#Pack = Pack(v)
 
   implicit val elementFormat: JsonFormat[T]
 

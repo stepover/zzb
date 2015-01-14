@@ -1,4 +1,5 @@
 package zzb.datatype
+import scala.language.implicitConversions
 
 /**
  * Created with IntelliJ IDEA.
@@ -14,7 +15,7 @@ trait TFixKeysMap[K, V] extends TMap[K, V] {
 
   override val itemFilter :  ItemFilter = kv => fixKeys.contains(kv._1)
 
-  implicit def packWrap(p:Pack) = new PackWrap(p)
+  implicit def packWrap(p:Pack): TFixKeysMap.this.type#PackWrap = new PackWrap(p)
 
   class PackWrap(p:Pack){
      def availableKeys = fixKeys

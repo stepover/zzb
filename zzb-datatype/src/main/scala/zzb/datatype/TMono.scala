@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import spray.json._
 import zzb.datatype.meta.TypeInfo
-
+import scala.language.implicitConversions
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
 
@@ -20,7 +20,7 @@ trait TMono[VT] extends DataType[VT] {
 
   protected def packToString(i: ValuePack[VT]): String = i.value.toString
 
-  implicit def value2Pack(v: VT) = Pack(v)
+  implicit def value2Pack(v: VT): TMono.this.type#Pack = Pack(v)
 
   implicit def Pack2Value(v: Pack): VT = v.value
 
@@ -73,7 +73,7 @@ trait TMono[VT] extends DataType[VT] {
     def :=(value: VT) = field().apply(value)
   }
 
-  implicit def fieldValue(field: () => this.type) = new FieldFuncWrap(field)
+  implicit def fieldValue(field: () => this.type): TMono.this.type#FieldFuncWrap = new FieldFuncWrap(field)
 
 
   def fromJsValue(x: JsValue): Pack = Pack(valueFormat.read(x))

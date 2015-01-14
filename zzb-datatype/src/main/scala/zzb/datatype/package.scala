@@ -2,6 +2,7 @@ package zzb
 
 import spray.json._
 import scala.reflect.ClassTag
+import scala.language.implicitConversions
 
 /**
  * Created with IntelliJ IDEA.
@@ -22,9 +23,9 @@ package object datatype {
 
   implicit def inStructPath2String(path: NestedStructFields): String = "/" + path.map(s => s().t_code_).mkString("/")
 
-  implicit def dt2InStructPath(dt: DataType[Any]) = dt.path
+  implicit def dt2InStructPath(dt: DataType[Any]): NestedStructFields = dt.path
 
-  implicit def structField2InStructPath(field: StructField) = field().path
+  implicit def structField2InStructPath(field: StructField): NestedStructFields = field().path
 
   implicit class ValuePackOptWarp(itemOpt: Option[ValuePack[Any]]) {
     def apply[VT](dt: DataType[VT]): Option[ValuePack[VT]] = itemOpt match {
