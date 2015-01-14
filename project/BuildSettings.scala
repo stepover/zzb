@@ -10,9 +10,7 @@ import bintray.Plugin._
 import bintray.Keys._
 
 object BuildSettings {
-  val VERSION = "0.1.1-SNAPSHOT"
-
-  lazy val repo =  if (VERSION.endsWith("SNAPSHOT")) "snapshot" else "release"
+  val VERSION = "0.1.1a0"
 
   lazy val basicSettings = seq(
     version := NightlyBuildSupport.buildVersion(VERSION),
@@ -24,7 +22,7 @@ object BuildSettings {
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     scalaVersion := "2.10.4",
     publishMavenStyle := true,
-    repository in bintray := repo,
+    repository in bintray := "release",
     resolvers ++= Dependencies.resolutionRepos,
     scalacOptions := Seq(
       "-encoding", "utf8",
@@ -68,11 +66,6 @@ object BuildSettings {
 
   lazy val disableParallelTestSetting = seq(parallelExecution in Test := false)
 
-   val publishSnap = "snapshot/"
-   val publishRelease = "release/"
-   val publishNightly = "nightly/"
-
-
   val bintray_user = scala.util.Properties.propOrElse("bintray_user",
     scala.util.Properties.envOrElse("bintray_user", ""))
 
@@ -81,7 +74,6 @@ object BuildSettings {
       NightlyBuildSupport.settings ++
       net.virtualvoid.sbt.graph.Plugin.graphSettings ++
       seq(
-      //  parallelExecution in Test := false,
         // scaladoc settings
         (scalacOptions in doc) <++= (name, version).map {
           (n, v) => Seq("-doc-title", n, "-doc-version", v)
