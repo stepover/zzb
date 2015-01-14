@@ -12,6 +12,8 @@ import bintray.Keys._
 object BuildSettings {
   val VERSION = "0.1.0"
 
+  lazy val repo =  if (VERSION.endsWith("SNAPSHOT")) "snapshot" else "release"
+
   lazy val basicSettings = seq(
     version := NightlyBuildSupport.buildVersion(VERSION),
     homepage := Some(new URL("http://zzb.stepover.me")),
@@ -22,7 +24,7 @@ object BuildSettings {
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     scalaVersion := "2.10.4",
     publishMavenStyle := true,
-    repository in bintray := "maven",
+    repository in bintray := repo,
     resolvers ++= Dependencies.resolutionRepos,
     scalacOptions := Seq(
       "-encoding", "utf8",
@@ -71,10 +73,12 @@ object BuildSettings {
    val publishNightly = "nightly/"
 
 
-  lazy val zzbModuleSettings =
+  val bintray_user = scala.util.Properties.propOrElse("bintray_user",
+    scala.util.Properties.envOrElse("bintray_user", ""))
+
+  lazy val zzbModuleSettingsBase =
     basicSettings ++
       NightlyBuildSupport.settings ++
-      bintraySettings ++ bintrayPublishSettings ++
       net.virtualvoid.sbt.graph.Plugin.graphSettings ++
       seq(
         // scaladoc settings
@@ -82,6 +86,8 @@ object BuildSettings {
           (n, v) => Seq("-doc-title", n, "-doc-version", v)
         }
       )
+
+  lazy val zzbModuleSettings = if(bintray_user.size>0) zzbModuleSettingsBase ++ bintraySettings else zzbModuleSettingsBase
 
   lazy val noPublishing = seq(
     publish :=(),

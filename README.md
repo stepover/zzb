@@ -15,7 +15,7 @@ Restful framework base on Scala,Akka,Spray
 
 在项目中添加依赖
 
-    resolvers += "zzb" at "http://dl.bintray.com/stepover/maven"
+    resolvers += "zzb" at "http://dl.bintray.com/stepover/release"
 
     libraryDependencies ++= Seq(
         "me.stepover" % "zzb-util_2.10" % "0.1.0"
@@ -68,7 +68,7 @@ zzb-xmpp
 
 在项目中添加依赖
 
-    resolvers += "zzb" at "http://dl.bintray.com/stepover/maven"
+    resolvers += "zzb" at "http://dl.bintray.com/stepover/release"
 
     libraryDependencies ++= Seq(
         "me.stepover" % "zzb-util_2.10" % "0.1.0",
