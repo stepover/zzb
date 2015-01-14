@@ -50,6 +50,8 @@ object UserInfo extends TStruct with Versioned {
   val memo = Field(TString("memo","备注"))
   val t_memo_ : String = "用户信息"
 
+  import BasicFormats._
+  val Phones = TList[Int]("phones","电话号码")
   val phones = Field(Phones)
 
   val misc = FieldMap(TProperty("misc","杂项"),default = TProperty.empty)
