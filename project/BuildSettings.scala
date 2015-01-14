@@ -12,6 +12,8 @@ import bintray.Keys._
 object BuildSettings {
   val VERSION = "0.1.0"
 
+  lazy val repo =  if (VERSION.endsWith("SNAPSHOT")) "snapshot" else "release"
+
   lazy val basicSettings = seq(
     version := NightlyBuildSupport.buildVersion(VERSION),
     homepage := Some(new URL("http://zzb.stepover.me")),
@@ -22,7 +24,7 @@ object BuildSettings {
     licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
     scalaVersion := "2.10.4",
     publishMavenStyle := true,
-    repository in bintray := "maven",
+    repository in bintray := repo,
     resolvers ++= Dependencies.resolutionRepos,
     scalacOptions := Seq(
       "-encoding", "utf8",
