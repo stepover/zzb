@@ -328,7 +328,7 @@ trait TStruct extends DataType[StructValue] {
 
   // <editor-fold defaultstate="collapsed" desc="支持默认值的字段定义 ">
 
-  implicit def funcToByName[T](func: () => T): T = func()
+  implicit def funcToByName[T](func: () => T) = func()
 
   protected final def FieldStruct[T <: TStruct](dt: T, isRequired: Boolean = false, default: => T#Pack = null): () => T = {
     val dtFun = Field(dt, isRequired)
@@ -450,8 +450,9 @@ trait TStruct extends DataType[StructValue] {
 
     def read(json: JsValue): Pack = json match {
       case x: JsObject =>
-        val fieldValues = x.fields.map {
-          case (key, jsv) if fieldMap.contains(key) => key -> fieldMap(key).fromJsValue(jsv)
+        val fieldValues = x.fields.filter(field => fieldMap.contains(field._1)) .map {
+          case (key, jsv)  =>
+            key -> fieldMap(key).fromJsValue(jsv)
         }.toMap
 
         makeValuePack(fieldValues)
