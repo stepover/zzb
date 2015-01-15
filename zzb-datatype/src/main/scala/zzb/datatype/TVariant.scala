@@ -91,7 +91,7 @@ object TVariant extends DataType[Variant] {
       override def write(obj: Pack): JsValue = obj.toJsValue
     }
 
-    implicit def fromAny(v :Any): Pack = Pack(Variant(v.toString))
+    implicit def fromAny(v :Any) = Pack(Variant(v.toString))
   }
 }
 

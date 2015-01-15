@@ -271,9 +271,9 @@ trait TEnum extends TMono[EnumIdx] {
 
   override def parse(str: String): Pack = name2EnumPack(str)
 
-  implicit def int2EnumValue(id: Int): TEnum.this.type#Value = this.apply(id)
+  implicit def int2EnumValue(id: Int) = this.apply(id)
 
-  implicit def name2EnumValue(name: String): TEnum.this.type#Value = this.withName(name)
+  implicit def name2EnumValue(name: String) = this.withName(name)
 
   implicit def int2EnumPack(id: Int): Pack = Pack(EnumIdx(id))
 
@@ -285,7 +285,7 @@ trait TEnum extends TMono[EnumIdx] {
 
   implicit def int2Name(id: Int): String = this.apply(id).toString
 
-  implicit def enumValue2Pack(ev: this.type#Value): TEnum.this.type#Pack = Pack(EnumIdx(ev.id))
+  implicit def enumValue2Pack(ev: this.type#Value) = Pack(EnumIdx(ev.id))
 
   //implicit def Packe2EnumValue(ev: this.type#Value) = Pack(EnumIdx(ev.id))
 
@@ -293,9 +293,9 @@ trait TEnum extends TMono[EnumIdx] {
 
   implicit def enumPack2Name(ei: Pack): String = this.apply(ei.value.idx).toString
 
-  implicit def enumPack2EnumValue(ei: Pack): (TEnum with Enumeration)#Value = this(ei.value.idx)
+  implicit def enumPack2EnumValue(ei: Pack) = this(ei.value.idx)
 
-  implicit def EnumIdx2EnumValue(idx: EnumIdx): (TEnum with Enumeration)#Value = this(idx.idx)
+  implicit def EnumIdx2EnumValue(idx: EnumIdx) = this(idx.idx)
 
   implicit def EnumValue2EnumIdx(ev: this.type#Value): EnumIdx = EnumIdx(ev.id)
 

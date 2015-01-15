@@ -44,7 +44,7 @@ trait TList[T] extends DataType[List[T]] {
     case _ => None
   }
 
-  implicit def value2Pack(v: List[T]): TList.this.type#Pack = Pack(v)
+  implicit def value2Pack(v: List[T]) = Pack(v)
 
   implicit val elementFormat: JsonFormat[T]
 
