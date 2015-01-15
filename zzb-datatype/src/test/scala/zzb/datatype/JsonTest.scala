@@ -66,6 +66,7 @@ class JsonTest extends WordSpec with MustMatchers {
           |    "name": "A"
           |  },
           |  "male": "真",
+          |  "nothis":123,
           |  "userAge": "39",
           |  "verInfo": {
           |    "ver": 0

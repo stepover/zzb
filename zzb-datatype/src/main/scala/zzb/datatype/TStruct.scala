@@ -450,8 +450,9 @@ trait TStruct extends DataType[StructValue] {
 
     def read(json: JsValue): Pack = json match {
       case x: JsObject =>
-        val fieldValues = x.fields.map {
-          case (key, jsv) if fieldMap.contains(key) => key -> fieldMap(key).fromJsValue(jsv)
+        val fieldValues = x.fields.filter(field => fieldMap.contains(field._1)) .map {
+          case (key, jsv)  =>
+            key -> fieldMap(key).fromJsValue(jsv)
         }.toMap
 
         makeValuePack(fieldValues)
