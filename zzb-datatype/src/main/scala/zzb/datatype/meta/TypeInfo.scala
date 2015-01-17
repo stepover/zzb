@@ -12,14 +12,20 @@ case class FieldDesc(code: String, typeInfo: TypeInfo, require: Boolean, withDef
 
 object FieldDesc extends DefaultJsonProtocol {
   implicit val format = new RootJsonFormat[FieldDesc] {
-    override def write(c: FieldDesc): JsValue =
-      JsObject(Map(
+    override def write(c: FieldDesc): JsValue = {
+      val fields = Map(
         "code" -> JsString(c.code),
         "type" -> JsString(c.typeInfo.valueCode),
         "require" -> JsBoolean(c.require),
         "withDefault" -> JsBoolean(c.withDefault),
         "memo" -> JsString(c.typeInfo.memo)
-      ))
+      )
+      val finalFields =  c.typeInfo match {
+        case et : EnumTypeInfo => fields + ("enum" -> JsObject(et.values.map(f=>f._1.toString ->JsString(f._2))))
+        case _ => fields
+      }
+      JsObject(finalFields)
+    }
 
     override def read(value: JsValue) = value match {
       case JsObject(fields) =>
