@@ -420,7 +420,7 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
     else {
       actionBuilder.actions.get(action) match {
         case Some(actDef) => //
-          actDef.roleCheck(if (opt.isManager) Manager else User) && actDef.entityType.isDefined == withEntity
+          actDef.roleCheck(opt) && actDef.entityType.isDefined == withEntity
         case None => false
       }
     }
@@ -660,7 +660,7 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
       }
 
       def route: Route =
-        operatorIs(alter.opt) {
+        operatorIs(alter.opt.roles.keySet) {
           handDoc(domainType, domainRoute)
         }
 

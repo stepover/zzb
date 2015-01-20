@@ -26,7 +26,7 @@ object Action {
     Some(a.name, a.opt, a.params, a.entity)
 }
 
-case class ActionDefine(name: String, roleCheck: Operator => Boolean, entityType: Option[DataType[_]])
+case class ActionDefine(name: String, roleCheck: AuthorizedOperator => Boolean, entityType: Option[DataType[_]])
 
 /**
  * 所有通过Rest API 提交的动作结果都是这个类型
@@ -72,16 +72,16 @@ trait ActionBuilder {
 
   val actions = mutable.Map[String, ActionDefine]()
 
-  def action(name: String, roleCheck: Operator => Boolean, dt: DataType[_] = null) = {
+  def action(name: String, roleCheck: AuthorizedOperator => Boolean, dt: DataType[_] = null) = {
     actions(name) = new ActionDefine(name, roleCheck, Option(dt))
   }
 
-  def roleAny: Operator => Boolean = r => true
+  def roleAny: AuthorizedOperator => Boolean = r => true
 
-  def roleUser: Operator => Boolean = r => if (r == User) true else false
+  def roleUser: AuthorizedOperator => Boolean = r => if (!r.isManager) true else false
 
-  def roleManager: Operator => Boolean = r => if (r == Manager) true else false
+  def roleManager: AuthorizedOperator => Boolean = r => if (r.isManager) true else false
 
-  def roles(rs: Operator*): Operator => Boolean = r => if (rs.contains(r)) true else false
+  def roles(rs: Set[String]): AuthorizedOperator => Boolean = r => if (r.roles.keys.exists(rs.contains)) true else false
 
 }

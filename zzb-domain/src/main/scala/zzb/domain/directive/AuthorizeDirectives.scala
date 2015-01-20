@@ -60,7 +60,11 @@ trait AuthorizeDirectives {
     }
   }
 
-  def operatorIs(opt:AuthorizedOperator): Directive0 = operator.require(_.equals(opt),AuthorizationFailedRejection)
+  def operatorIs(role:String): Directive0 = operator.require(_.roles.keySet.contains(role),AuthorizationFailedRejection)
+  def operatorIs(roles:Set[String]): Directive0 = operator.require(_.roles.keys.exists(roles.contains),AuthorizationFailedRejection)
+
+  def operatorNot(role:String): Directive0 = operator.require(!_.roles.keySet.contains(role),AuthorizationFailedRejection)
+  def operatorNot(roles:Set[String]): Directive0 = operator.require(_.roles.keys.forall(r => !roles.contains(r)),AuthorizationFailedRejection)
 
   private def optionalValue(lowerCaseName: String): RestHeader ⇒ Option[String] = {
     case RestHeader(`lowerCaseName`, value) ⇒ Some(value)

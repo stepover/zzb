@@ -64,11 +64,11 @@ class PlaneActor(val domId: String,
   //    case (Manager, "fly") => self ? Fly(opt)
   //  }
 
-  blockAlter(User, Plane.me.passengers, "用户任何时候都无权修改乘客数据", Stopped, Sliding, Flying)
+  blockAlter("User", Plane.me.passengers, "用户任何时候都无权修改乘客数据", Stopped, Sliding, Flying)
 
-  blockAlter(Manager, Plane.me.passengers, "在飞机滑行和飞行的时候不能修改乘客数据", Sliding, Flying)
+  blockAlter("Manager", Plane.me.passengers, "在飞机滑行和飞行的时候不能修改乘客数据", Sliding, Flying)
 
-  blockAlter(User, Plane.me.foods().water, "乘客不能修改食物数量", Stopped, Sliding, Flying)
+  blockAlter("User", Plane.me.foods().water, "乘客不能修改食物数量", Stopped, Sliding, Flying)
 
   def ownerChanged(monitorPath: StructPath, newData: Option[Any], newVer: Int, oldData: Option[Any], oldVer: Int) = {
     self ! "OwnerChanged"
