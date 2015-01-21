@@ -37,7 +37,13 @@ class MetaInfoTest extends WordSpec with MustMatchers {
 
     val userInfoJson = TypeInfo.format.write(UserInfo.typeInfo)
 
-    println(userInfoJson)
+    println("--->1" + userInfoJson)
+
+    val tInfo = TypeInfo.format.read(userInfoJson)
+
+    println("--->2" + TypeInfo.format.write(tInfo))
+
+    //TypeInfo.format.write(tInfo).toString() mustBe userInfoJson.toString()
 
     //TypeInfo.format.read(userInfoJson) mustBe UserInfo.typeInfo
 

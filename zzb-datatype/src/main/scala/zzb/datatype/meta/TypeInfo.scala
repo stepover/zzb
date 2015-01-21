@@ -21,7 +21,7 @@ object FieldDesc extends DefaultJsonProtocol {
         "memo" -> JsString(c.typeInfo.memo)
       )
       val finalFields =  c.typeInfo match {
-        case et : EnumTypeInfo => fields + ("enum" -> JsObject(et.values.map(f=>f._1.toString ->JsString(f._2))))
+        case et : EnumTypeInfo => fields + ("enum" -> JsArray(et.values.map(f=>JsObject(Map("name" ->JsString(f._2),"value" -> JsString(f._1.toString))))))
         case _ => fields
       }
       JsObject(finalFields)
@@ -79,14 +79,24 @@ class MapTypeInfo(val keyCode :String,valueCode:String, memo :String) extends Ty
 }
 
 object TypeInfo extends DefaultJsonProtocol {
+  def shortName(fullName:String):String = {
+    fullName.lastIndexOf(".") match {
+      case -1 => fullName
+      case idx => fullName.substring(idx+1)
+    }
+  }
   implicit val format = new RootJsonFormat[TypeInfo] {
+
     override def write(c: TypeInfo): JsValue = {
       var m = Map[String, JsValue](
         "typeid" -> JsString(c.valueCode),
         "memo" -> JsString(c.memo)
       )
-      if (c.fields.size > 0)
-        m = m + ("fields" -> JsArray(c.fields.map(FieldDesc.format.write)))
+      if (c.fields.size > 0){
+        val fieldMap  = c.fields.map(field => shortName(field.typeInfo.valueCode) -> FieldDesc.format.write(field)).toMap
+        m = m + ("fields" -> JsObject(fieldMap))
+      }
+
       JsObject(m)
     }
 
@@ -103,7 +113,7 @@ object TypeInfo extends DefaultJsonProtocol {
           },
           if (jsFields.contains("fields"))
             jsFields("fields") match {
-              case JsArray(fields) => fields.map(FieldDesc.format.read)
+              case JsObject(fields) => fields.values.toList.map(FieldDesc.format.read)
               case _ => Nil
             }
           else Nil
