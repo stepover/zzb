@@ -1,11 +1,13 @@
 package zzb.domain.directive
 
 import zzb.rest._
+
 import scala.concurrent.{ExecutionContext, Future}
 import shapeless.HNil
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 import spray.json.DefaultJsonProtocol
+import spray.util._
 
 /**
  * Created by Simon on 2014/3/25
@@ -13,17 +15,56 @@ import spray.json.DefaultJsonProtocol
 trait AuthorizeDirectives {
 
   import directives.HeaderDirectives._
+  import directives.BasicDirectives._
   import directives.RouteDirectives._
 
   /**
    * 提取当前请求的认证操作者
    * @return
    */
-  def operator: Directive1[AuthorizedOperator] = headerValue(optionalOperatorValue("x-user-id", isManager = false)) |
-    headerValue(optionalOperatorValue("x-manager-id", isManager = true)) |
+//  def operator: Directive1[AuthorizedOperator] = headerValue(optionalOperatorValue("x-user-id", isManager = false)) |
+//    headerValue(optionalOperatorValue("x-manager-id", isManager = true)) |
+//    reject(AuthorizationFailedRejection)
+
+  def operator: Directive1[AuthorizedOperator] = headersValue(takeOperator,"x-???-id") |
     reject(AuthorizationFailedRejection)
 
-  def operatorIs(opt:AuthorizedOperator): Directive0 = operator.require(_.equals(opt),AuthorizationFailedRejection)
+  private def takeOperator(headers: List[RestHeader]):Option[AuthorizedOperator] = {
+    val roles = headers.filter(header => header.lowercaseName.startsWith("x-")
+      && header.lowercaseName.endsWith("-id")).map(header => header.lowercaseName.substring(2) -> header.value).map(
+    kv => kv._1.substring(0,kv._1.length - 3) -> kv._2)
+    val managers = Set("manager","admin","system")
+    if(roles.size == 0) None
+    else{
+      val rolesMap = roles.toMap
+      val isManager = rolesMap.keys.exists(managers.contains)
+      Some(AuthorizedOperator(roles(0)._2,isManager,rolesMap))
+    }
+  }
+
+  /**
+   * Extracts an HTTP header value using the given function. If the function result is undefined for all headers the
+   * request is rejected with an empty rejection set. If the given function throws an exception the request is rejected
+   * with a [[zzb.rest.MalformedHeaderRejection]].
+   */
+  def headersValue[T](f: List[RestHeader] ⇒ Option[T],headInfo:String): Directive1[T] = {
+    val protectedF: List[RestHeader] ⇒ Option[Either[Rejection, T]] = headers ⇒
+      try f(headers).map(Right.apply)
+      catch {
+        case NonFatal(e) ⇒ Some(Left(MalformedHeaderRejection(headInfo, e.getMessage.nullAsEmpty, Some(e))))
+      }
+    extract(ctx => protectedF(ctx.request.headers)).flatMap  {
+      case Some(Right(a))        ⇒ provide(a)
+      case Some(Left(rejection)) ⇒ reject(rejection)
+      case None                  ⇒ reject
+    }
+  }
+
+  def operatorIs(role:String): Directive0 = operator.require(_.roles.keySet.contains(role),AuthorizationFailedRejection)
+  def operatorIs(roles:Set[String]): Directive0 = operator.require(_.roles.keys.exists(roles.contains),AuthorizationFailedRejection)
+
+  def operatorNot(role:String): Directive0 = operator.require(!_.roles.keySet.contains(role),AuthorizationFailedRejection)
+  def operatorNot(roles:Set[String]): Directive0 = operator.require(_.roles.keys.forall(r => !roles.contains(r)),AuthorizationFailedRejection)
 
   private def optionalValue(lowerCaseName: String): RestHeader ⇒ Option[String] = {
     case RestHeader(`lowerCaseName`, value) ⇒ Some(value)
@@ -62,9 +103,9 @@ trait AuthorizeDirectives {
 
 }
 
-case class AuthorizedOperator(id: String, isManager: Boolean){
+case class AuthorizedOperator(id: String, isManager: Boolean,roles:Map[String,String]=Map()){
   override def toString = s"${if (isManager) "m"else "u"}:$id"
 }
 object AuthorizedOperator extends DefaultJsonProtocol{
-  implicit val format = jsonFormat2(AuthorizedOperator.apply)
+  implicit val format = jsonFormat3(AuthorizedOperator.apply)
 }

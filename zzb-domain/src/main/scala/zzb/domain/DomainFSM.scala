@@ -94,7 +94,7 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
     }
   }
 
-  implicit def optActionTrans(opt: AuthorizedOperator) = if (opt.isManager) Manager else User
+  //implicit def optActionTrans(opt: AuthorizedOperator) = if (opt.isManager) Manager else User
 
   override def alterPathVerify(path: StructPath, operator: AuthorizedOperator): Option[String] =
     checkAlterBlock(stateName, operator, path.toString)((p1, p2) => p1.startsWith(p2) || p2.startsWith(p1))
@@ -104,9 +104,12 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   def when(stateNames: S*)(stateFunction: StateFunction): Unit =
     stateNames.foreach(s => when(s, null)(stateFunction))
 
-  def blockAlter(opt: Operator, path: Path, msg: String, states: S*) =
+  def blockAlter(blockRole: String, path: Path, msg: String, states: S*):Unit =
+    blockAlter(Set(blockRole),path,msg,states:_*)
+
+  def blockAlter(blockRoles: Set[String], path: Path, msg: String, states: S*): Unit =
     states.foreach(
-      stateBlackList.getOrElseUpdate(_, mutable.Set[BlockRule]()).add(BlockRule(opt, path, msg))
+      stateBlackList.getOrElseUpdate(_, mutable.Set[BlockRule]()).add(BlockRule(blockRoles.map(_.toLowerCase), path, msg))
     )
 
   def route: Route = domainRoute
@@ -247,10 +250,10 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   private val stateBlackList = mutable.Map[S, mutable.Set[BlockRule]]()
 
   private def checkAlterBlock(state: S, operator: AuthorizedOperator, path: String)(pathChecker: (String, String) => Boolean) = {
-    val opt = if (operator.isManager) Manager else User
+
     stateBlackList.get(state) match {
       case Some(list) =>
-        list.find(i => i.opt == opt && pathChecker(path, i.path.value)) match {
+        list.find(i => operator.roles.keys.exists(i.blockRoles.contains) && pathChecker(path, i.path.value)) match {
           case Some(rule) => Some(rule.msg)
           case _ => None
         }
@@ -304,7 +307,7 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
 
   case class ExeFailed(exception: Throwable, sender: ActorRef, jobDesc: String)
 
-  case class BlockRule(opt: Operator, path: Path, msg: String)
+  case class BlockRule(blockRoles: Set[String], path: Path, msg: String)
 
   case class LongTimeExec(longExec: (T#Pack, AuthorizedOperator) => Future[Any],
                           doc: T#Pack, opt: AuthorizedOperator = sysopt, jobDesc: String, replyTo: ActorRef = sender()) extends AllowDelay

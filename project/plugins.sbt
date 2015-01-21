@@ -30,3 +30,6 @@ resolvers += Resolver.url(
     Resolver.ivyStylePatterns)
 
 addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.2")
+
+//支持aws s3 发布的插件
+addSbtPlugin("com.frugalmechanic" % "fm-sbt-s3-resolver" % "0.4.0")

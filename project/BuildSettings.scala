@@ -10,7 +10,7 @@ import bintray.Plugin._
 import bintray.Keys._
 
 object BuildSettings {
-  val VERSION = "0.1.1a1"
+  val VERSION = "0.1.1-SNAPSHOT"
 
   lazy val basicSettings = seq(
     version := NightlyBuildSupport.buildVersion(VERSION),
@@ -19,10 +19,9 @@ object BuildSettings {
     organizationHomepage := Some(new URL("http://zzb.stepover.me")),
     description := "Restful framework base on Scala,Akka,Spary",
     startYear := Some(2013),
-    licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
+    licenses +=("MIT", url("http://opensource.org/licenses/MIT")),
     scalaVersion := "2.10.4",
     publishMavenStyle := true,
-    repository in bintray := "release",
     resolvers ++= Dependencies.resolutionRepos,
     scalacOptions := Seq(
       "-encoding", "utf8",
@@ -41,6 +40,22 @@ object BuildSettings {
     libraryDependencies += "org.scalamacros" %% "quasiquotes" % "2.0.1" cross CrossVersion.binary
 
   )
+
+  lazy val releaseSetting = seq(
+    repository in bintray := "release"
+  )
+
+  lazy val snapshotSetting = seq(
+    // publishing
+    crossPaths := true,
+    publishTo :=
+      Some("zzb snapshot" at {
+        // public uri is repo.spray.io, we use an SSH tunnel to the nexus here
+        "s3://s3.cn-north-1.amazonaws.com.cn/aws.baoxian.com/snapshot/"
+      })
+  )
+
+  lazy val publishSetting = if (VERSION.trim.endsWith("SNAPSHOT")) snapshotSetting else releaseSetting
 
   lazy val boxedServiceSettings =
     seq(
@@ -66,11 +81,11 @@ object BuildSettings {
 
   lazy val disableParallelTestSetting = seq(parallelExecution in Test := false)
 
-  val bintray_user = scala.util.Properties.propOrElse("bintray_user",
+  lazy val bintray_user = scala.util.Properties.propOrElse("bintray_user",
     scala.util.Properties.envOrElse("bintray_user", ""))
 
   lazy val zzbModuleSettingsBase =
-    basicSettings ++
+    basicSettings ++ publishSetting ++
       NightlyBuildSupport.settings ++
       net.virtualvoid.sbt.graph.Plugin.graphSettings ++
       seq(
@@ -80,7 +95,9 @@ object BuildSettings {
         }
       )
 
-  lazy val zzbModuleSettings = if(bintray_user.size>0) zzbModuleSettingsBase ++ bintraySettings else zzbModuleSettingsBase
+  lazy val zzbModuleSettings = if (bintray_user.size > 0 && !VERSION.trim.endsWith("SNAPSHOT"))
+    zzbModuleSettingsBase ++ bintraySettings
+  else zzbModuleSettingsBase
 
   lazy val noPublishing = seq(
     publish :=(),
@@ -105,7 +122,7 @@ object BuildSettings {
 
   lazy val formatSettings = SbtScalariform.scalariformSettings ++ Seq(
     ScalariformKeys.preferences in Compile := formattingPreferences,
-    ScalariformKeys.preferences in Test    := formattingPreferences
+    ScalariformKeys.preferences in Test := formattingPreferences
   )
 
   def formattingPreferences = {
@@ -130,6 +147,7 @@ object BuildSettings {
 
   // for running only tests by tag use system property: -Dakka.test.tags.only=<tag name>
   lazy val useOnlyTestTags: Set[String] = systemPropertyAsSeq("akka.test.tags.only").toSet
+
   def executeMultiJvmTests: Boolean = {
     useOnlyTestTags.contains("long-running") || !useExcludeTestTags.contains("long-running")
   }
@@ -148,7 +166,7 @@ object BuildSettings {
     ((executeMultiJvmTests, multiNodeEnabled) match {
       case (true, true) =>
         executeTests in Test <<= (executeTests in Test, multiNodeExecuteTests in MultiJvm) map {
-          case ( testResults, multiNodeResults)  =>
+          case (testResults, multiNodeResults) =>
             val overall =
               if (testResults.overall.id < multiNodeResults.overall.id)
                 multiNodeResults.overall
@@ -160,7 +178,7 @@ object BuildSettings {
         }
       case (true, false) =>
         executeTests in Test <<= (executeTests in Test, executeTests in MultiJvm) map {
-          case ( testResults, multiNodeResults) =>
+          case (testResults, multiNodeResults) =>
             val overall =
               if (testResults.overall.id < multiNodeResults.overall.id)
                 multiNodeResults.overall
