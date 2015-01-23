@@ -7,7 +7,7 @@ import zzb.datatype.{Versioned, DataType, TStruct}
  */
 trait TStorable[K,KT <: DataType[K] ] extends TStruct with Versioned{
 
-  val keyType: KT
+  def keyType: KT
 
   override protected def afterPackCreated(p:Pack) =  require(requiredField.contains(keyType))
 }
