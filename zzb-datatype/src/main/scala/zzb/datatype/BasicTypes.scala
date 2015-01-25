@@ -310,7 +310,7 @@ trait TEnum extends TMono[EnumIdx] {
       case JsString(x) if values.exists(_.toString == x) => name2EnumPack(x)
       case JsString(x) if isIntStr(x) =>
         val x2 = x.toInt
-        if (x2 > 0 && x2 < maxId) int2EnumPack(x2)
+        if (x2 >= 0 && x2 < maxId) int2EnumPack(x2)
         else deserializationError(s" $x is not a allow value")
       case JsString(x) => deserializationError(s" $x is not a allow value")
       case x: JsObject if x.fields.contains("idx") => EnumIdx(x.fields("idx").convertTo[Int])
