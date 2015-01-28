@@ -452,7 +452,11 @@ trait TStruct extends DataType[StructValue] {
       case x: JsObject =>
         val fieldValues = x.fields.filter(field => fieldMap.contains(field._1)) .map {
           case (key, jsv)  =>
-            key -> fieldMap(key).fromJsValue(jsv)
+            try {
+              key -> fieldMap(key).fromJsValue(jsv)
+            }catch {
+              case ex:Throwable => deserializationError(s"$t_code_ : $key parse failed,because '${ex.getMessage}'",ex)
+            }
         }.toMap
 
         makeValuePack(fieldValues)
