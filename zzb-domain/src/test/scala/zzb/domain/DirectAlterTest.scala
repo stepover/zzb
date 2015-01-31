@@ -2,6 +2,7 @@ package zzb.domain
 
 import spray.http.StatusCodes._
 import spray.json.{JsString, JsonParser}
+import spray.routing.MalformedRequestContentRejection
 import zzb.datatype._
 import zzb.domain.plane._
 
@@ -190,6 +191,64 @@ class DirectAlterTest extends PlaneHttpTestBase {
         status mustBe OK
         TString.fromJsValue(JsonParser(body.asString)).value mustBe "hello God"
       }
+    }
+
+
+    "提交的 json格式不正确会报400错误 " in {
+
+      manager(Put(s"/api/planes/$pid/alter/foods", "ddd")) ~> check {
+        rejection mustBe a[MalformedRequestContentRejection]
+      }
+    }
+
+    "列表操作,内部数据类型为ValuePack" in {
+//      manager(Post(s"/api/planes/$pid/alter")) ~> check {
+//        status mustBe OK
+//        val alter = ActionResult.format.read(JsonParser(body.asString))
+//        alterSeq = alter.param
+//        alterSeq must be > 0
+//      }
+
+      val p1 = Passenger(Passenger.name := "simon")
+      val p2 = Passenger(Passenger.name := "jack")
+      val ps = Passengers(List(p1, p2))
+
+      manager(Put(s"/api/planes/$pid/alter/passengers", ps.json)) ~> check {
+        status mustBe OK
+      }
+
+      manager(Get(s"/api/planes/$pid/latest/passengers")) ~> check {
+        status mustBe OK
+        Passengers.fromJsValue(JsonParser(body.asString)).value.size mustBe 2
+      }
+
+      manager(Get(s"/api/planes/$pid/latest/passengers/@size")) ~> check {
+        status mustBe OK
+        Integer.parseInt(body.asString) mustBe 2
+      }
+
+      manager(Delete(s"/api/planes/$pid/alter/passengers/0")) ~> check {
+        status mustBe OK
+      }
+      manager(Get(s"/api/planes/$pid/latest/passengers")) ~> check {
+        status mustBe OK
+        Passengers.fromJsValue(JsonParser(body.asString)).value.size mustBe 1
+      }
+      manager(Get(s"/api/planes/$pid/latest/passengers/@size")) ~> check {
+        status mustBe OK
+        body.asString mustBe "1"
+      }
+      manager(Delete(s"/api/planes/$pid/alter/passengers/0")) ~> check {
+        status mustBe OK
+      }
+      manager(Get(s"/api/planes/$pid/latest/passengers")) ~> check {
+        status mustBe OK
+        Passengers.fromJsValue(JsonParser(body.asString)).value.size mustBe 0
+      }
+      manager(Delete(s"/api/planes/$pid/alter/passengers/0")) ~> check {
+        status mustBe BadRequest
+      }
+
     }
   }
 }

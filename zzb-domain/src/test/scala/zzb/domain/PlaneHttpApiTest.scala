@@ -386,6 +386,12 @@ class PlaneHttpApiTest extends PlaneHttpTestBase {
     }
 
     "列表操作,内部数据类型为ValuePack" in {
+
+      manager(Get(s"/api/planes/$pid/latest/passengers")) ~> check {
+        status mustBe OK
+        Passengers.fromJsValue(JsonParser(body.asString)).value.size mustBe 2
+      }
+
       manager(Post(s"/api/planes/$pid/alter")) ~> check {
         status mustBe OK
         val alter = ActionResult.format.read(JsonParser(body.asString))
