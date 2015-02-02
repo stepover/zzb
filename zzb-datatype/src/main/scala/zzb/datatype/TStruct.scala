@@ -295,7 +295,7 @@ trait TStruct extends DataType[StructValue] {
   // </editor-fold>
 
   override def AnyToPack(v: Any): Option[Pack] = v match {
-    case mv: Pack => Some(mv)
+    case mv: StructPack[_] => Some(mv.asInstanceOf[Pack])
     case _ => None
   }
 

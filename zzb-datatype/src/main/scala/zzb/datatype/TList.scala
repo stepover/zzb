@@ -37,7 +37,7 @@ trait TList[T] extends DataType[List[T]] {
   ListRegistry.register(getClass.getName + ":" + t_code_,this.asInstanceOf[TList[Any]])
 
   override def AnyToPack(v: Any) = v match {
-    case p: Pack => Some(p)
+    case p: ListPack[_] => Some(p.asInstanceOf[Pack])
     case list: List[_] if list.size == 0 => Some(Pack(Nil))
     case list: List[_] if lm.runtimeClass.isInstance(list.head) =>
       Some(Pack(list.asInstanceOf[List[T]]))

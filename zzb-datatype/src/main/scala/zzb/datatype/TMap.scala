@@ -23,7 +23,7 @@ trait TMap[K, V] extends DataType[Map[K, V]] {
   val vm: ClassTag[_]
 
   override def AnyToPack(v: Any) = v match {
-    case p: Pack => Some(p)
+    case p: MapPack[_,_] => Some(p.asInstanceOf[Pack])
     case _ => None
   }
 
