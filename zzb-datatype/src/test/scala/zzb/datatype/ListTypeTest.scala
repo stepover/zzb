@@ -29,7 +29,7 @@ class ListTypeTest extends WordSpec with MustMatchers {
     println("序列化前的对象----" + o)
     println("反序列化的对象----" + t)
 
-    t mustBe o
+    t.toString mustBe o.toString
   }
 
   "ListType " must {
@@ -59,6 +59,12 @@ class ListTypeTest extends WordSpec with MustMatchers {
       serializeTest(users)
      // serializeTest(usersP)
 
+    }
+
+    "list default" in {
+      import UserInfo._
+      val u0 = UserInfo(userName := "Simon")
+      u0(phones).get.value.size mustBe 0
     }
 
     " List :: , ::: Operate " in {

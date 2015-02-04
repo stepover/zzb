@@ -26,7 +26,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
     println("序列化前的对象----" + o)
     println("反序列化的对象----" + t)
 
-    t mustBe o
+    t.toString mustBe o.toString
   }
 
   "DataType" must {
@@ -61,7 +61,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
       userInfo(NoThis) must be(None)
 
-      userInfo.fieldCount must equal(3 + 1) //有两个缺省字段
+      userInfo.fieldCount must equal(6) //有两个缺省字段
 
 
       val bt: BloodType.Pack = userInfo.field(BloodType).get

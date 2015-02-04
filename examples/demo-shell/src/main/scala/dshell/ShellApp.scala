@@ -1,6 +1,6 @@
 package dshell
 
-import com.typesafe.scalalogging.slf4j.Logging
+
 import zzb.shell.{Task, Shell}
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
@@ -13,7 +13,7 @@ import zzb.config.EnvConfigLoader
  * Time: 下午8:01
  * Copyright baoxian.com 2012~2020
  */
-object ShellApp extends App with Logging with EnvConfigLoader {
+object ShellApp extends App  with EnvConfigLoader {
 
   Task.parseConfig(ConfigFactory.load("tasks").getConfig("task"))
 

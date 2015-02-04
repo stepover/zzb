@@ -33,7 +33,7 @@ class JsonTest extends WordSpec with MustMatchers {
     println("序列化前的对象----" + o)
     println("反序列化的对象----" + t)
 
-    t mustBe o
+    t.toString mustBe o.toString
   }
 
   "json" must {
@@ -102,8 +102,8 @@ class JsonTest extends WordSpec with MustMatchers {
     val us3 = Users.fromJsValue(us1Json)
     val us4 = Users.fromJsValue(JsonParser(us1Json.prettyPrint))
 
-    us3 mustBe us1
-    us4 mustBe us1
+    us3.toString mustBe us1.toString
+    us4.toString mustBe us1.toString
 
     serializeTest(us1)
 

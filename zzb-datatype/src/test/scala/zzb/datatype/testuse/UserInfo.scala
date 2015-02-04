@@ -52,7 +52,7 @@ object UserInfo extends TStruct with Versioned {
 
   import BasicFormats._
   val Phones = TList[Int]("phones","电话号码")
-  val phones = Field(Phones)
+  val phones = FieldList(Phones,isRequired = true,default = Phones(List[Int]()))
 
   val misc = FieldMap(TProperty("misc","杂项"),default = TProperty.empty)
 

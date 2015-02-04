@@ -584,9 +584,13 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
           case Success(res) => complete(res._1, res._2)
           case Failure(e: RequiredFieldNotSetException) =>
             complete(BadRequest, ActionResult(docState, e.getMessage, VersionRevise(doc.version, doc.revise)))
+          case Failure(e:AlterDataFailed) =>
+            ctx =>
+              hlog(opt)(log.warning("direct delete data failed,{}. reason:{}", path, e.cause.stackTrace))
+              ctx.complete(BadRequest, ActionResult(docState, e.cause.getMessage, VersionRevise(doc.version, doc.revise)))
           case Failure(e: Throwable) =>
             ctx =>
-              hlog(opt)(log.error("direct delete data failed,{}. reason:{}", path, e.stackTrace))
+              hlog(opt)(log.warning("direct delete data failed,{}. reason:{}", path, e.stackTrace))
               ctx.complete(InternalServerError, ActionResult(docState, e.getMessage, VersionRevise(doc.version, doc.revise)))
         }
       }
@@ -631,7 +635,7 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
             } catch {
               case e: Throwable =>
                 self ! AlterOver(seq, orientDoc)
-                promise.failure(e)
+                promise.failure(AlterDataFailed("",e))
             }
 
           //无权修改数据
@@ -898,6 +902,8 @@ object AlterSession extends DefaultJsonProtocol {
 case class ResourceNotFound(id: String) extends Exception(s"request resource $id not found!")
 
 case class RestException(err: StatusCode) extends Exception(err.value)
+
+case class AlterDataFailed(message:String,cause:Throwable) extends Exception(message,cause)
 
 private object DocLoadStatus extends Enumeration {
   val DocUnload = Value(1, "Unload")
