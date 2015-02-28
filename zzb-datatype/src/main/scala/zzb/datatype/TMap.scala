@@ -186,9 +186,14 @@ trait TMap[K, V] extends DataType[Map[K, V]] {
 
     //覆盖操作
     override def ->>(other: ValuePack[Any]): Pack = {
-      if (other.dataType != dataType) throw new RuntimeException("data type miss match")
-      val o = other.asInstanceOf[Pack]
-      o.plusWithList(this.value)
+      val thisMt = dataType.asInstanceOf[TMap[_,_]]
+      other.dataType match {
+        case mt:TMap[_,_] if mt.km == thisMt.km && mt.vm == thisMt.vm  =>
+          val o = other.asInstanceOf[Pack]
+          o.plusWithList(this.value)
+        case _ =>
+          throw new RuntimeException("data type miss match")
+      }
     }
   }
 
