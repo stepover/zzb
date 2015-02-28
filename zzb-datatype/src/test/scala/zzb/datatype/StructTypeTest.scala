@@ -123,18 +123,34 @@ class StructTypeTest extends WordSpec with MustMatchers {
     }
 
     "two TStructType instance override field values" in {
-      val userInfo1 = UserInfo(UserName("Simon"), UserAge(38))
+      import Address._
+      import UserInfo._
 
-      val userInfo2 = UserInfo(UserName("Jack"))
+      val add1 = Address(country := "china",province := "aaa")
+      val add2 = Address(country := "china",province := "bbb",city := "guangzhou")
+
+      val userInfo1 = UserInfo(UserName("Simon"), UserAge(38),add1,misc := Map("water" -> 100, "price" -> 23.1, "date" -> "1978-12-03 06:32:33"))
+
+      val userInfo2 = UserInfo(UserName("Jack"),add2,misc := Map("food" -> 500))
 
       val userInfo3 = userInfo1 ->> userInfo2
       val userInfo4 = userInfo2 ->> userInfo1
 
       userInfo3(UserAge) must equal(Some(UserAge(38)))
       userInfo3(UserName) must equal(Some(UserName("Simon")))
+      val add3 = userInfo3.address
+      add3(Address.province()).get.value mustBe "aaa"
+      add3(Address.city()).get.value mustBe "guangzhou"
+      userInfo3.misc("water").get.toInt mustBe 100
+      userInfo3.misc("food").get.toInt mustBe 500
 
       userInfo4(UserAge) must equal(Some(UserAge(38)))
       userInfo4(UserName) must equal(Some(UserName("Jack")))
+      val add4 = userInfo4.address
+      add4(Address.province()).get.value mustBe "bbb"
+      add4(Address.city()).get.value mustBe "guangzhou"
+      userInfo4.misc("water").get.toInt mustBe 100
+      userInfo4.misc("food").get.toInt mustBe 500
 
     }
     "construct from other" in {

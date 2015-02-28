@@ -35,6 +35,14 @@ object NoThis extends TMono[Null] {
 object UserAge extends Age
 object DriverAge extends Age
 
+object Address extends TStruct{
+  val t_memo_ = "地址"
+  val country = Field(TString("country","国家"))
+  val province = Field(TString("province","省份"))
+  val city = Field(TString("city","城市"))
+  val street = Field(TString("street","街道"))
+}
+
 /**
  * Created by Simon on 2014/7/2
  */
@@ -47,6 +55,7 @@ object UserInfo extends TStruct with Versioned {
   val blood = FieldEnum(BloodType,default = BloodType.A)
   val birthDay = Field(TDateTime("birthday","初生日期"))
   val male = Field(TBoolean("male","性别"))
+  val address = Field(Address)
   val memo = Field(TString("memo","备注"))
   val t_memo_ : String = "用户信息"
 
@@ -64,6 +73,8 @@ object UserInfo extends TStruct with Versioned {
       op.get.value
     }
     def misc = p(UserInfo.misc()).get.asInstanceOf[TProperty.Pack]
+
+    def address = p(UserInfo.address()).get.asInstanceOf[Address.Pack]
   }
 
 }
