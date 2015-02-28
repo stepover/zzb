@@ -11,14 +11,14 @@ Restful framework base on Scala,Akka,Spray
 * 一个简单的xmpp包装器，用于支持xmpp机器人
 
 
-项目当前版本是: 0.1.0
+项目当前版本是: 0.1.1
 
 在项目中添加依赖
 
     resolvers += "zzb" at "http://dl.bintray.com/stepover/release"
 
     libraryDependencies ++= Seq(
-        "me.stepover" % "zzb-util_2.10" % "0.1.0"
+        "me.stepover" %% "zzb-util" % "0.1.1"
     )
 
 zzb-box
