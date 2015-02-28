@@ -86,7 +86,19 @@ StructValue(values: Map[String, ValuePack[Any]],
   }
 
   def ->>(other: StructValue) = {
-    StructValue(other.values ++ values.toList, fieldMap, requiredField)
+    val merged = values.map{
+      case(k,v) =>
+        val nv = fieldMap(k) match {
+          case st:TStruct if other.hasField(k) =>
+            v ->> other.values(k)
+          case mt:TMap[_,_] if other.hasField(k) =>
+            v ->> other.values(k)
+          case _ => v
+        }
+        k -> nv
+    }
+    StructValue(other.values ++ merged.toList, fieldMap, requiredField)
+
   }
 
   //相同的字段去掉(除非是必填项),一方有一方没有的字段留下，不同的字段保留左边的
