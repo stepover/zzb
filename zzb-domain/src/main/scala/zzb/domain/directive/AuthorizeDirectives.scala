@@ -34,7 +34,7 @@ trait AuthorizeDirectives {
       && header.lowercaseName.endsWith("-id")).map(header => header.lowercaseName.substring(2) -> header.value).map(
     kv => kv._1.substring(0,kv._1.length - 3) -> kv._2)
     val managers = Set("manager","admin","system")
-    if(roles.size == 0) None
+    if(roles.size == 0) Some(AuthorizedOperator.UnknownOperator)
     else{
       val rolesMap = roles.toMap
       val isManager = rolesMap.keys.exists(managers.contains)
@@ -108,4 +108,6 @@ case class AuthorizedOperator(id: String, isManager: Boolean,roles:Map[String,St
 }
 object AuthorizedOperator extends DefaultJsonProtocol{
   implicit val format = jsonFormat3(AuthorizedOperator.apply)
+
+  val UnknownOperator = AuthorizedOperator("_unknown_",false)
 }
