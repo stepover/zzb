@@ -71,17 +71,6 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
   var mb = mutable.Set[K]()
 
   /**
-   * 获取下一个版本号
-   * @param key 主键
-   * @return 下一个版本号
-   */
-  private def nextVersionNum(key: K): Int = {
-    val n = nb.getOrElse(key, 0)
-    nb(key) = n + 1
-    n + 1
-  }
-
-  /**
    * 保存文档新版本。提供的文档数据中的 tag 为 tagA,参数中newTag 为 tagB
    *
    * (tagA,tabB) match {
@@ -163,7 +152,9 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param tag 标签
    * @return 文档
    */
-  def load(key: K, tag: String): Option[T#Pack] = ???
+  def load(key: K, tag: String): Option[T#Pack] = {
+    datas.findValue(key)(_.tag == tag)
+  }
 
   /**
    * 装载指定主键，指定版本的文档
@@ -176,19 +167,14 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     if (verNum >= 0) {
       //指定版本时无论是否标记删除都装载
       if (delay > 0) Thread.sleep(delay)
-      db.get(ID(key, verNum)).map(docType.fromJsValue(_).asInstanceOf[T#Pack])
+      datas.findValue(key)(_.version == verNum)
     }
     else {
       if (mb.contains(key)) None //装最新版时检查是否已经标记删除
-      else vb.get(key) match {
-        case None => None
-        case Some(v) =>
-          val verList = verListFromJsValue(v)
-          verList match {
-            case maxVer :: tail =>
-              db.get(ID(key, maxVer(ver).get.value)).map(docType.fromJsValue(_).asInstanceOf[T#Pack])
-            case Nil => None
-          }
+      else {
+        val vit = datas.valueIterator(key)
+        if(vit.size == 0) None
+        else Some(vit.next())
       }
     }
   }
@@ -198,10 +184,12 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param key 主键
    * @return 文档版本信息列表
    */
-  def versions(key: K): Seq[VersionInfo.Pack] = vb.get(key) match {
-    case None => Nil
-    case Some(v) => verListFromJsValue(v)
-  }
+  def versions(key: K): Seq[VersionInfo.Pack] = datas.values.map(pack =>
+    pack(VersionInfo).get.asInstanceOf[VersionInfo.Pack]).toSeq
+//    vb.get(key) match {
+//    case None => Nil
+//    case Some(v) => verListFromJsValue(v)
+//  }
 
   /**
    * 删除指定文档
@@ -209,20 +197,29 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param justMarkDelete 是否标记删除
    * @return 删除数量 1 或 0
    */
-  override def delete(key: K, justMarkDelete: Boolean): Int = (justMarkDelete, vb.contains(key)) match {
-    case (_, false) => 0
-    case (true, true) => mb.add(key); 1
-    case (false, true) =>
-      val verList = verListFromJsValue(vb.get(key).get)
-      import zzb.datatype.VersionInfo._
-      for (vInfo <- verList) {
-        val verNum = vInfo(ver).get.value
-        db.remove(ID(key, verNum))
-      }
-      vb.remove(key)
-      nb.remove(key)
-      mb.remove(key)
-      1
+  override def delete(key: K, justMarkDelete: Boolean): Int = {
+    val vit = datas.valueIterator(key)
+    (justMarkDelete, vit.size > 0 ) match {
+      case (_, false) => 0  //指定的key不存在
+      case (true,true) => mb.add(key); 1 //标记删除
+      case (false,true) => datas.remove(key);mb.remove(key);1 //真正删除
+    }
+
+//  (justMarkDelete, vb.contains(key)) match {
+//      case (_, false) => 0
+//      case (true, true) => mb.add(key); 1
+//      case (false, true) =>
+//        val verList = verListFromJsValue(vb.get(key).get)
+//        import zzb.datatype.VersionInfo._
+//        for (vInfo <- verList) {
+//          val verNum = vInfo(ver).get.value
+//          db.remove(ID(key, verNum))
+//        }
+//        vb.remove(key)
+//        nb.remove(key)
+//        mb.remove(key)
+//        1
+//    }
   }
 
 
