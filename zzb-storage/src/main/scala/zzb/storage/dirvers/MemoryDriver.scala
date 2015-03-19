@@ -1,13 +1,14 @@
 package zzb.storage.dirvers
 
-import com.mongodb.casbah.Imports
-import com.mongodb.util.JSON
-import zzb.datatype.{StructPath, Del, VersionInfo, DataType}
-import zzb.storage.{TStorable, Driver}
+import java.util.Comparator
+
+import akka.util.Index
 import org.joda.time.DateTime
-import scala.collection.mutable
 import spray.json._
-import scala.Some
+import zzb.datatype._
+import zzb.storage.{KeyNotFountException, DuplicateTagException, Driver, TStorable}
+
+import scala.collection.mutable
 
 
 /**
@@ -21,6 +22,11 @@ import scala.Some
 abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] {
 
   type VersionList = List[VersionInfo.Pack]
+
+  protected final val datas = new Index[K, T#Pack](100, new Comparator[T#Pack] {
+    override def compare(o1: T#Pack, o2: T#Pack): Int = o2.version.compareTo(o1.version) //保证降序排列
+  })
+
 
   implicit def versionListWrap(verList: VersionList) = VersionListWrap(verList)
 
@@ -76,51 +82,88 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
   }
 
   /**
-   * 保存文档新版本。
+   * 保存文档新版本。提供的文档数据中的 tag 为 tagA,参数中newTag 为 tagB
+   *
+   * (tagA,tabB) match {
+   * case (None,None) => pack 版本号+1, 覆盖当前数据库中的文档
+   * case (None,Some(tb)) => pack 版本号+1,tag 设置为tb 覆盖当前数据库中的文档
+   * case (Some(ta),None) => pack 版本号+1,tag 设置为"",数据库中增加一个新版本实例，原来的版本不变
+   * case (Some(ta),Some(tb) => pack 版本号+1,tag 设置为tb,数据库中增加一个新版本实例，原来的版本不变
+   *
+   * 所谓版本号 +1 就是 “将参数中的pack版本号设置为数据库中的当前版本号+1”
+   *
+   *
    * @param pack 文档数据
    * @param operatorName 操作者名称
    * @param isOwnerOperate 是否文档所有人
-   * @return 更新了版本好的新文档
+   * @return 返回数据库中的最新版本
    */
-  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean): T#Pack = {
+  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean, newTag: Option[String] = None): T#Pack = {
     val key = getKey(pack)
-    import VersionInfo._
+    import zzb.datatype.VersionInfo._
 
-    def doSave(verList: VersionList) = {
-      val newVerNum = nextVersionNum(key)
+    def firstSave: T#Pack = {
       val newVer = VersionInfo(
-        ver := newVerNum,
+        ver := 0,
         time := DateTime.now,
-        opt := operatorName, isOwn := isOwnerOperate)
-
+        opt := operatorName,
+        isOwn := isOwnerOperate,
+        VersionInfo.tag := newTag.getOrElse("")
+      )
       val savedPack = (pack <~ newVer).copy(revise = 0) //修订号清零
-
-      if (delay > 0) Thread.sleep(delay)
-
-      db(ID(key, newVerNum)) = savedPack.toJsValue
-
-      vb(key) = (newVer :: verList).toJsValue
-
-      mb.remove(key) //清除删除标记
-
+      datas.put(key, savedPack)
       savedPack
     }
-    vb.get(key) match {
-      case None => doSave(Nil)
-      case Some(v) =>
-        val verList = verListFromJsValue(v)
-        verList match {
-          case maxVer :: tail =>
-            //            val maxVerNum = maxVer(ver).get.value
-            //            if (maxVerNum > pack.version)
-            //              docType.fromJsValue(db.get(ID(key, maxVerNum)).get).asInstanceOf[T#Pack] //已存储的版本大于提交存储的版本，返回已存储的版本
-            //else
-            doSave(maxVer :: tail)
-          case Nil => throw new Exception("error")
-        }
+
+    def updateSave(nd: T#Pack,od: T#Pack) = {
+      val newVer = VersionInfo(
+        ver := od.version + 1,
+        time := DateTime.now,
+        opt := operatorName,
+        isOwn := isOwnerOperate,
+        VersionInfo.tag := newTag.getOrElse("")
+      )
+      if(od.tag == nd.tag && od.tag!="")
+        throw DuplicateTagException(key.toString,newTag.get)
+      val savedPack = (nd <~ newVer).copy(revise = 0) //修订号清零
+      if(od.tag.length == 0)//库中原数据无tag,移除旧值
+        datas.remove(key,od)
+      datas.put(key, savedPack)
+      savedPack
+    }
+
+    val vit = datas.valueIterator(key)
+    if (vit.size == 0)
+      firstSave
+    else
+      updateSave(pack,vit.next())
+  }
+
+  def tag(key: K, newTag: String): T#Pack = {
+    val vit = datas.valueIterator(key)
+    if (vit.size == 0) throw  KeyNotFountException(key.toString)
+    else{
+      val od = vit.next()
+      od.tag match {
+        case t if t == newTag => od
+        case _ =>
+          val nd1 = od <~: od(VersionInfo) <~: Ver(od.version + 1)
+          val savedPack = nd1 <~: od(VersionInfo) <~: Tag(newTag)
+          if(od.tag.length == 0)
+            datas.remove(key,od)
+          datas.put(key,savedPack)
+          savedPack
+      }
     }
   }
 
+  /**
+   * 根据指定key装载指定标记的文档
+   * @param key 主键
+   * @param tag 标签
+   * @return 文档
+   */
+  def load(key: K, tag: String): Option[T#Pack] = ???
 
   /**
    * 装载指定主键，指定版本的文档
@@ -129,8 +172,9 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @return 文档
    */
   def load(key: K, verNum: Int): Option[T#Pack] = {
-    import VersionInfo._
-    if (verNum >= 0) { //指定版本时无论是否标记删除都装载
+    import zzb.datatype.VersionInfo._
+    if (verNum >= 0) {
+      //指定版本时无论是否标记删除都装载
       if (delay > 0) Thread.sleep(delay)
       db.get(ID(key, verNum)).map(docType.fromJsValue(_).asInstanceOf[T#Pack])
     }
@@ -170,7 +214,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     case (true, true) => mb.add(key); 1
     case (false, true) =>
       val verList = verListFromJsValue(vb.get(key).get)
-      import VersionInfo._
+      import zzb.datatype.VersionInfo._
       for (vInfo <- verList) {
         val verNum = vInfo(ver).get.value
         db.remove(ID(key, verNum))
@@ -192,7 +236,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     case None => None
     case Some(v) =>
       val verList = verListFromJsValue(v)
-      import VersionInfo._
+      import zzb.datatype.VersionInfo._
       verList match {
         case maxVer :: tail =>
           val maxVerNum = maxVer(ver).get.value
@@ -212,20 +256,21 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * 根据路径、值查询最新版本文档列表
    * @param params 路径，值键值对参数序列
    **/
-  def find(params: (StructPath, Any)*): List[T#Pack]={
+  def find(params: (StructPath, Any)*): List[T#Pack] = {
     def query =
-      (doc:T#Pack) =>{
-        params.forall{
-          case (path,value)=>
-            path.getDomainData(doc).fold(false){
-              f=>
-                val key= doc(doc.dataType.asInstanceOf[TStorable[K, KT]].keyType).get.value
-                val maxV=nb(key)
+      (doc: T#Pack) => {
+        params.forall {
+          case (path, value) =>
+            path.getDomainData(doc).fold(false) {
+              f =>
+                val key = doc(doc.dataType.asInstanceOf[TStorable[K, KT]].keyType).get.value
+                val maxV = nb(key)
                 val cuV = doc(VersionInfo.ver()).get.value
-                f==path.targetType.AnyToPack(value)&& maxV==cuV}
+                f == path.targetType.AnyToPack(value) && maxV == cuV
+            }
         }
       }
-    db.values.map(f=>docType.fromJsValue(f).asInstanceOf[T#Pack]).filter(f=>query(f)).toList
+    db.values.map(f => docType.fromJsValue(f).asInstanceOf[T#Pack]).filter(f => query(f)).toList
   }
 
 }

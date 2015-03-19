@@ -591,6 +591,11 @@ trait TStruct extends DataType[StructValue] {
       case Some(v) => v(Ver).get.value
     }
 
+    def tag: String = this(VersionInfo) match {
+      case None => ""
+      case Some(v) => v(Tag).get.value
+    }
+
     //对指定的某个字段的值执行一个函数，用函数的结果值替换这个字段的值，返回新的结构实例
     def update[VT](dt: TMono[VT], f: VT => VT): Pack = {
 

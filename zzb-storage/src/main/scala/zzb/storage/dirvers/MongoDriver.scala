@@ -34,13 +34,15 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   private def nextVersionNum(key: K) = this.currentVersion(key).fold(1)(f=>f(VersionInfo.ver()).get.value + 1)
 
   /**
-   * 保存文档新版本。
+   * 保存文档新版本，如果指定了tag,将新保存的数据打上标签，版本固定。
+   * 同时复制一个版本号+1的新版本(tag为空)作为最新的版本.
+   * 如果指定 tag,就修改当前最新版本的内容,版本号会+1,但是不会克隆新的副本，不保存旧版本的文档数据
    * @param doc 文档数据
    * @param operatorName 操作者名称
    * @param isOwnerOperate 是否文档所有人
-   * @return 更新了版本好的新文档
+   * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
    */
-  def save(doc: T#Pack, operatorName: String, isOwnerOperate: Boolean): T#Pack = {
+  def save(doc: T#Pack, operatorName: String, isOwnerOperate: Boolean,tag:Option[String] = None): T#Pack = {
     val key = getKey(doc)
     import VersionInfo._
 
@@ -59,6 +61,15 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     newDoc
   }
 
+  def tag(key :K,tag:String): T#Pack = ???
+
+  /**
+   * 根据指定key装载指定标记的文档
+   * @param key 主键
+   * @param tag 标签
+   * @return 文档
+   */
+  def load(key: K,tag:String): Option[T#Pack] = ???
 
   /**
    * 装载指定主键，指定版本的文档

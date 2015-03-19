@@ -61,14 +61,45 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
     promise.future
   }
 
-  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true)(implicit ec: ExecutionContext): Future[T#Pack] = {
+  def load(key:K,tag:String) (implicit ec: ExecutionContext): Future[Option[T#Pack]] = Future{
+      driver.load(key,tag)
+  }
+
+  /**
+   * 保存文档新版本，如果指定了tag,将新保存的数据打上标签，版本固定。
+   * 同时复制一个版本号+1的新版本(tag为空)作为最新的版本.
+   * 如果指定 tag,就修改当前最新版本的内容,版本号会+1,但是不会克隆新的副本，不保存旧版本的文档数据
+   * @param pack 文档数据
+   * @param operatorName 操作者名称
+   * @param isOwnerOperate 是否文档所有人
+   * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
+   */
+  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,tag:Option[String] = None)(implicit ec: ExecutionContext): Future[T#Pack] = {
     val key = driver.getKey(pack)
     inCache.remove(key)
     inCache.apply(key, () => Future {
-      driver.save(pack, operatorName, isOwnerOperate)
+      driver.save(pack, operatorName, isOwnerOperate,tag)
     })
   }
 
+  /**
+   * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本
+   * @param key 主键
+   * @param tag 标签
+   * @return 返回 tag 为空的最新版本
+   */
+  def tag(key :K,tag:String)(implicit ec: ExecutionContext): Future[T#Pack] = {
+    inCache.remove(key)
+    inCache.apply(key, () => Future {
+      driver.tag(key,tag)
+    })
+  }
+
+
+
+//  def save(pack: T#Pack, tag:String = "")(implicit ec: ExecutionContext): Future[T#Pack] = {
+//    save(pack,"",isOwnerOperate = true,tag)
+//  }
   /**
    * 获取最近的几个版本信息，最新的在前面
    * @param key 主键
@@ -303,6 +334,14 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
    */
   def load(key: K, ver: Int): Option[T#Pack] //Some(docType.fromJsValue(JsString("")).asInstanceOf[T#Pack])
 
+  /**
+   * 根据指定key装载指定标记的文档
+   * @param key 主键
+   * @param tag 标签
+   * @return 文档
+   */
+  def load(key: K,tag:String): Option[T#Pack]
+
 
   /**
    * 获取最近的几个版本信息，最新的在前面
@@ -328,14 +367,23 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
   def revert(key: K, oldVer: Int): Option[T#Pack]
 
   /**
-   * 保存文档新版本
+   * 保存文档新版本，如果指定了tag,将新保存的数据打上标签，版本固定。
+   * 同时复制一个版本号+1的新版本(tag为空)作为最新的版本.
+   * 如果指定 tag,就修改当前最新版本的内容,版本号会+1,但是不会克隆新的副本，不保存旧版本的文档数据
    * @param pack 文档数据
    * @param operatorName 操作者名称
    * @param isOwnerOperate 是否文档所有人
-   * @return 更新了版本好的新文档
+   * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
    */
-  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean): T#Pack
+  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean,tag:Option[String] = None): T#Pack
 
+  /**
+   * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本
+   * @param key 主键
+   * @param tag 标签
+   * @return 返回 tag 为空的最新版本
+   */
+  def tag(key :K,tag:String): T#Pack
 
   /**
    * 根据路径、值查询最新版本文档列表
@@ -364,3 +412,6 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
 
 }
 
+case class DuplicateTagException(key:String,tag:String) extends Exception(s"DuplicateTag '$tag' for key '$key' ")
+
+case class KeyNotFountException(key:String) extends Exception(s"Not fount key '$key'")

@@ -10,7 +10,7 @@ import spray.json.JsonFormat
 trait Versioned { this : TStruct =>
 
   /** 内置的 版本信息 字段 */
-  val verInfo = FieldStruct(VersionInfo, isRequired = true,() => VersionInfo())
+  val verInfo = FieldStruct(VersionInfo, isRequired = true, VersionInfo())
 }
 
 object VersionInfo extends TStruct{
@@ -18,11 +18,11 @@ object VersionInfo extends TStruct{
   override lazy val t_code_ = "verInfo"
 
 
-  val ver = FieldInt(Ver, isRequired = true, default = () => 0)
+  val ver = FieldInt(Ver, isRequired = true, default = 0)
   val time = Field(SaveTime)
   val opt = Field(Operator)
   val isOwn = Field(IsOwnerOperate)
-  //val del = FieldBoolean(Del, isRequired = true, default = () => false)
+  val tag = FieldString(Tag,isRequired = true, default = "")
 }
 object VersionInfos extends TPackList[VersionInfo.Pack]{
   override val t_memo_ : String = "VersionList"
@@ -38,9 +38,9 @@ object Ver extends TInt {
   override lazy val t_code_ = "ver"
 }
 
-object Del extends TBoolean {
-  val t_memo_ : String = "deleted"
-  override lazy val t_code_ = "del"
+object Tag extends TString {
+  val t_memo_ : String = "tag"
+  override lazy val t_code_ = "tag"
 }
 
 object SaveTime extends TDateTime{
