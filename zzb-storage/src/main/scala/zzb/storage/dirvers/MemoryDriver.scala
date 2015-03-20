@@ -41,29 +41,24 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     case x => deserializationError("Expected Map as JsObject, but got " + x)
   }
 
-  /**
-   * 多版本文档内容集合主键
-   * @param key 数据主键
-   * @param ver 数据主键版本
-   */
-  case class ID(key: K, ver: Int)
+  //case class ID(key: K, ver: Int)
 
   /**
    * 保存所有文档内容的Map(key 为内容主键和版本对，数据为内容)
    */
   //var db = mutable.Map[ID, T#Pack]()
-  var db = mutable.Map[ID, JsValue]()
+  //var db = mutable.Map[ID, JsValue]()
 
   /**
    * 保存文档版本信息的Map(key 为文档内容主键，数据为文档版本列表，新版本在前)
    */
   //var vb = mutable.Map[K, VersionList]()
-  var vb = mutable.Map[K, JsValue]()
+  //var vb = mutable.Map[K, JsValue]()
 
   /**
    * 记录每一个主键已经使用过的最大版本号，不存在的主键，版本号为0
    */
-  var nb = mutable.Map[K, Int]()
+  //var nb = mutable.Map[K, Int]()
 
   /**
    * 记录标记为已删除的文档主键
@@ -93,7 +88,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
 
     def firstSave: T#Pack = {
       val newVer = VersionInfo(
-        ver := 0,
+        ver := 1,
         time := DateTime.now,
         opt := operatorName,
         isOwn := isOwnerOperate,
@@ -104,9 +99,9 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
       savedPack
     }
 
-    def updateSave(nd: T#Pack,od: T#Pack) = {
+    def updateSave(nd: T#Pack,currentVersion:Int) = {
       val newVer = VersionInfo(
-        ver := od.version + 1,
+        ver := currentVersion + 1,
         time := DateTime.now,
         opt := operatorName,
         isOwn := isOwnerOperate,
@@ -122,27 +117,32 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     }
 
     val vit = datas.valueIterator(key)
-    if (vit.size == 0)
+    if (vit.isEmpty)
       firstSave
     else
-      updateSave(pack,vit.next())
+      updateSave(pack,vit.next().version)
   }
 
+  /**
+   * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本
+   * @param key 主键
+   * @param newTag 标签
+   * @return 返回 tag 为空的最新版本
+   */
   def tag(key: K, newTag: String): T#Pack = {
     val vit = datas.valueIterator(key)
-    if (vit.size == 0) throw  KeyNotFountException(key.toString)
+    if (vit.isEmpty) throw  KeyNotFountException(key.toString)
     else{
       val od = vit.next()
-      od.tag match {
-        case t if t == newTag => od
-        case _ =>
-          val nd1 = od <~: od(VersionInfo) <~: Ver(od.version + 1)
-          val savedPack = nd1 <~: od(VersionInfo) <~: Tag(newTag)
-          if(od.tag.length == 0)
-            datas.remove(key,od)
-          datas.put(key,savedPack)
-          savedPack
-      }
+      val nd1 = od <~: od(VersionInfo) <~: Ver(od.version + 1)
+      val taged = nd1 <~: nd1(VersionInfo) <~: Tag(newTag)
+      datas.remove(key,od)
+      datas.put(key,taged)
+
+      val nd2 = taged <~: taged(VersionInfo) <~: Ver(taged.version + 1)
+      val latest = nd2 <~: nd2(VersionInfo) <~: Tag("")
+      datas.put(key,latest)
+      latest
     }
   }
 
@@ -163,7 +163,6 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @return 文档
    */
   def load(key: K, verNum: Int): Option[T#Pack] = {
-    import zzb.datatype.VersionInfo._
     if (verNum >= 0) {
       //指定版本时无论是否标记删除都装载
       if (delay > 0) Thread.sleep(delay)
@@ -173,8 +172,10 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
       if (mb.contains(key)) None //装最新版时检查是否已经标记删除
       else {
         val vit = datas.valueIterator(key)
-        if(vit.size == 0) None
-        else Some(vit.next())
+        if(vit.isEmpty)
+          None
+        else
+          Some(vit.next())
       }
     }
   }
@@ -199,7 +200,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    */
   override def delete(key: K, justMarkDelete: Boolean): Int = {
     val vit = datas.valueIterator(key)
-    (justMarkDelete, vit.size > 0 ) match {
+    (justMarkDelete,vit.nonEmpty ) match {
       case (_, false) => 0  //指定的key不存在
       case (true,true) => mb.add(key); 1 //标记删除
       case (false,true) => datas.remove(key);mb.remove(key);1 //真正删除
@@ -229,24 +230,21 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param oldVer 旧版本号
    * @return 新文档，如果没有找到指定版本的文档则返回None
    */
-  override def revert(key: K, oldVer: Int): Option[T#Pack] = vb.get(key) match {
-    case None => None
-    case Some(v) =>
-      val verList = verListFromJsValue(v)
-      import zzb.datatype.VersionInfo._
-      verList match {
-        case maxVer :: tail =>
-          val maxVerNum = maxVer(ver).get.value
-          if (oldVer >= maxVerNum)
-            db.get(ID(key, maxVer(ver).get.value)).map(docType.fromJsValue(_).asInstanceOf[T#Pack])
-          else {
-            load(key, oldVer) match {
-              case None => None
-              case Some(oldDoc) => Some(save(oldDoc, oldDoc(opt).get.value, oldDoc(isOwn).get.value))
-            }
-          }
-        case Nil => None
+  override def revert(key: K, oldVer: Int): Option[T#Pack] = {
+    import zzb.datatype.VersionInfo._
+    val vit = datas.valueIterator(key)
+    if(vit.isEmpty) None
+    else{
+      val latest = vit.next()
+      if(latest.version <= oldVer ) Some(latest)
+      else{
+        datas.findValue(key)(_.version == oldVer) match {
+          case None => None
+          case Some(old) =>
+            Some(save(old, old(opt).get.value, old(isOwn).get.value))
+        }
       }
+    }
   }
 
   /**
@@ -257,17 +255,13 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     def query =
       (doc: T#Pack) => {
         params.forall {
-          case (path, value) =>
+          case (path, forCheckValue) =>
             path.getDomainData(doc).fold(false) {
-              f =>
-                val key = doc(doc.dataType.asInstanceOf[TStorable[K, KT]].keyType).get.value
-                val maxV = nb(key)
-                val cuV = doc(VersionInfo.ver()).get.value
-                f == path.targetType.AnyToPack(value) && maxV == cuV
+              pathValue =>
+                pathValue == path.targetType.AnyToPack(forCheckValue)
             }
         }
       }
-    db.values.map(f => docType.fromJsValue(f).asInstanceOf[T#Pack]).filter(f => query(f)).toList
+    datas.keys.map(k => datas.valueIterator(k).next()).filter(doc => query(doc)).toList
   }
-
 }

@@ -47,7 +47,7 @@ class StorageTestSpec extends FlatSpec with StorageBehaviors with BeforeAndAfter
     assert(h(ID).get.value === "100")
   }
 
-  "MemoryDriver " should behave like storageWork(new MemoryDriver[String, ID.type, HomeInfo.type](delay = 100) {
+  "MemoryDriver " should behave like storageWork(new MemoryDriver[String, ID.type, HomeInfo.type](delay = 200) {
     override val docType = HomeInfo
   })
 
@@ -66,6 +66,9 @@ trait StorageBehaviors {
     import ExecutionContext.Implicits.global
 
     val k1 = "100"
+    val t1 = "tag1"
+    val t2 = "tag2"
+    val t3 = "tag3"
 
     val storage = new Storage(makeDriver)
 
@@ -109,12 +112,12 @@ trait StorageBehaviors {
 
       import UserInfo._
       val v1Changed = v1 <~ UserInfo(userName := "Simon", userAge := 39 ,male := true)
-      val v2 = storage.save(v1Changed).await
+      val v2 = storage.save(v1Changed).await //保存动作会创建新版本，但是会把旧版本覆盖（只有打了tag的版本才会保留副本）
       assert(v2.version === 2)
 
       val vlist2 = storage.versions(k1).await
-      assert(vlist2.size === 2)
-      assert(vlist2.head.version === 2)
+      assert(vlist2.size === 1)   //版本数量不变
+      assert(vlist2.head.version === 2) //版本号+1
 
       val v2Loaded = storage(k1).await.get
       assert(v2Loaded === v2)
@@ -170,33 +173,46 @@ trait StorageBehaviors {
 //      assert(result.head(carInfo().carLicense()).get.value=="京GNR110")
 //    }
 
-    it should "可以恢复数据的旧版本" in {
-      val v2Reverted = storage.revert(k1, 2).await.get
-      assert(v2Reverted.version === 4)
+    it should "可以给数据增加 tag" in {
+      val vlt1Before = storage.versions(k1).await
+      val t1Before =storage.load(k1).await.get
+      val t1Done = storage.tag(k1,t1).await
+      val vlt1Done = storage.versions(k1).await
+      assert( t1Done.version - t1Before.version === 2) //打tag 增加一个版本号，返回无tag版本再增加一个版本号
+      assert(t1Done.tag === "") // 打tag 动作返回的最新版本没有tag
+      assert(vlt1Done.size - vlt1Before.size === 1  ) //只打 tag 版本数量增加 1
+      val t2Before = storage.save(t1Done).await
+      assert( t2Before.version - t1Done.version === 1)
 
-      val v4 = storage.load(k1).await.get
-      assert(v2Reverted === v4)
-
-      assert(v4(HomeInfo.carInfo().carLicense()) === None) //恢复的版本中没有这个数据
-
-      val v4Reverted = storage.revert(k1, 4).await.get
-      assert(v4Reverted.version === 4) //最新版本 revert 没动作
-
-      assert(storage.revert(k1, 0).await === None)
     }
 
-    it should "可以标记删除数据 " in {
-
-      assert(storage.delete("nothis").await === 0)
-      assert(storage.delete(k1).await === 1)
-
-      assert(storage.load(k1).await === None)
-
-      assert(storage.load(k1,2).await.get.version === 2) //标记删除后，指定版本还是可以装载的
-
-      assert(storage.delete(k1,justMarkDelete = false).await === 1) //真的删掉了
-
-      assert(storage.load(k1,2).await === None) //这回真没了
-    }
+//    it should "可以恢复数据的旧版本" in {
+//      val v2Reverted = storage.revert(k1, 2).await.get
+//      assert(v2Reverted.version === 4)
+//
+//      val v4 = storage.load(k1).await.get
+//      assert(v2Reverted === v4)
+//
+//      assert(v4(HomeInfo.carInfo().carLicense()) === None) //恢复的版本中没有这个数据
+//
+//      val v4Reverted = storage.revert(k1, 4).await.get
+//      assert(v4Reverted.version === 4) //最新版本 revert 没动作
+//
+//      assert(storage.revert(k1, 0).await === None)
+//    }
+//
+//    it should "可以标记删除数据 " in {
+//
+//      assert(storage.delete("nothis").await === 0)
+//      assert(storage.delete(k1).await === 1)
+//
+//      assert(storage.load(k1).await === None)
+//
+//      assert(storage.load(k1,2).await.get.version === 2) //标记删除后，指定版本还是可以装载的
+//
+//      assert(storage.delete(k1,justMarkDelete = false).await === 1) //真的删掉了
+//
+//      assert(storage.load(k1,2).await === None) //这回真没了
+//    }
   }
 }

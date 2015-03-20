@@ -380,10 +380,10 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
   /**
    * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本
    * @param key 主键
-   * @param tag 标签
+   * @param newTag 标签
    * @return 返回 tag 为空的最新版本
    */
-  def tag(key :K,tag:String): T#Pack
+  def tag(key :K,newTag:String): T#Pack
 
   /**
    * 根据路径、值查询最新版本文档列表
