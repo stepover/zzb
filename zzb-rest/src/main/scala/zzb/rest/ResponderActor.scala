@@ -14,6 +14,8 @@ trait ResponderActor extends Actor with ActorLogging {
 
   def requestId = ""
 
+  def requestHeaders: List[RestHeader] = Nil
+
   private var response_ : Option[RestResponse] = None
 
   def response = response_
@@ -73,12 +75,14 @@ trait ResponderBase extends ResponderActor {
     }
   }
 
-  status(400 to 426) { res ⇒
-    log.warning("wrong request  '{}' ->  {} ", requestId, res.status)
+  status(400 to 426) { (res: RestResponse) ⇒
+    val headInfo = requestHeaders.map(h ⇒ s"${h.name} = ${h.value}")
+    log.warning("wrong request  '{}' ->  {},headers:{} ", requestId, res.status, headInfo)
   }
 
   status(500 to 510) { res ⇒
-    log.error("server error  '{}' ->  {} ", requestId, res.status)
+    val headInfo = requestHeaders.map(h ⇒ s"${h.name} = ${h.value}")
+    log.error("server error  '{}' ->  {} ,headers:{}", requestId, res.status, headInfo)
   }
 }
 
@@ -93,6 +97,8 @@ abstract class GenResponder[T](implicit mdcLog: MdcLoggingContext, m: ClassTag[T
   override def log = HeritLogAdapter("rest", mdcLog)
 
   status(OK) { res ⇒
+    val headInfo = requestHeaders.map(h ⇒ s"${h.name} = ${h.value}")
+    log.info("ok request  '{}' ->  {},headers:{} ", requestId, res.status, headInfo)
     res.entity match {
       case Empty ⇒ onEntity(None)
 
