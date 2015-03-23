@@ -74,7 +74,7 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
    * @param isOwnerOperate 是否文档所有人
    * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
    */
-  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,tag:Option[String] = None)(implicit ec: ExecutionContext): Future[T#Pack] = {
+  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,tag:String = "")(implicit ec: ExecutionContext): Future[T#Pack] = {
     val key = driver.getKey(pack)
     inCache.remove(key)
     inCache.apply(key, () => Future {
@@ -144,6 +144,32 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
     //寻找指定版本，不使用缓存
     Future {
       driver.revert(key, oldVer)
+    }.onComplete {
+      case Success(ov) =>
+        ov match {
+          case Some(v) => //更新缓存
+            inCache.remove(key)
+            inCache.apply(key, () => Future(v))
+          case None => ()
+        }
+        promise.success(ov)
+      case Failure(ex) => promise.failure(ex)
+    }
+    promise.future
+  }
+
+  /**
+   * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
+   * @param key 主键
+   * @param oldVer 旧版本号
+   * @return 新文档
+   */
+  def revert(key: K, tag: String)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = {
+    val promise = Promise[Option[T#Pack]]()
+
+    //寻找指定版本，不使用缓存
+    Future {
+      driver.revert(key, tag)
     }.onComplete {
       case Success(ov) =>
         ov match {
@@ -367,6 +393,14 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
   def revert(key: K, oldVer: Int): Option[T#Pack]
 
   /**
+   * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
+   * @param key 主键
+   * @param tag 旧Tag
+   * @return 新文档，如果没有找到指定版本的文档则返回None
+   */
+  def revert(key: K, tag: String): Option[T#Pack]
+
+  /**
    * 保存文档新版本，如果指定了tag,将新保存的数据打上标签，版本固定。
    * 同时复制一个版本号+1的新版本(tag为空)作为最新的版本.
    * 如果指定 tag,就修改当前最新版本的内容,版本号会+1,但是不会克隆新的副本，不保存旧版本的文档数据
@@ -375,7 +409,7 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
    * @param isOwnerOperate 是否文档所有人
    * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
    */
-  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean,tag:Option[String] = None): T#Pack
+  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean,tag:String = ""): T#Pack
 
   /**
    * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本

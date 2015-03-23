@@ -82,7 +82,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param isOwnerOperate 是否文档所有人
    * @return 返回数据库中的最新版本
    */
-  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean, newTag: Option[String] = None): T#Pack = {
+  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean, newTag: String = ""): T#Pack = {
     val key = getKey(pack)
     import zzb.datatype.VersionInfo._
 
@@ -92,39 +92,43 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
         time := DateTime.now,
         opt := operatorName,
         isOwn := isOwnerOperate,
-        VersionInfo.tag := newTag.getOrElse("")
+        eqtag := "",
+        VersionInfo.tag := newTag
       )
       val savedPack = (pack <~ newVer).copy(revise = 0) //修订号清零
       datas.put(key, savedPack)
       savedPack
     }
 
-    def updateSave(nd: T#Pack,currentVersion:Int) = {
+    def updateSave(nd: T#Pack,od: T#Pack) = {
       val newVer = VersionInfo(
-        ver := currentVersion + 1,
+        ver := od.version + 1,
         time := DateTime.now,
         opt := operatorName,
         isOwn := isOwnerOperate,
-        VersionInfo.tag := newTag.getOrElse("")
+        eqtag := "", //只要是更新新数据，就不能认为跟之前的某个tag相等了
+        VersionInfo.tag := newTag
       )
-      if(od.tag == nd.tag && od.tag!="")
-        throw DuplicateTagException(key.toString,newTag.get)
-      val savedPack = (nd <~ newVer).copy(revise = 0) //修订号清零
-      if(od.tag.length == 0)//库中原数据无tag,移除旧值
-        datas.remove(key,od)
+      val savedPack = (pack <~ newVer).copy(revise = 0) //修订号清零
+      datas.remove(key,od)
       datas.put(key, savedPack)
-      savedPack
+      if(newTag != ""){
+        val latest = savedPack <~: savedPack(VersionInfo) <~: List( Ver(savedPack.version + 1), Tag(""),EqTag(newTag))
+        datas.put(key,latest)
+        latest
+      }else
+        savedPack
     }
 
     val vit = datas.valueIterator(key)
     if (vit.isEmpty)
       firstSave
     else
-      updateSave(pack,vit.next().version)
+      updateSave(pack,vit.next())
   }
 
   /**
-   * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本
+   * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空,eqtag = newTag)作为最新的版本
    * @param key 主键
    * @param newTag 标签
    * @return 返回 tag 为空的最新版本
@@ -134,13 +138,11 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     if (vit.isEmpty) throw  KeyNotFountException(key.toString)
     else{
       val od = vit.next()
-      val nd1 = od <~: od(VersionInfo) <~: Ver(od.version + 1)
-      val taged = nd1 <~: nd1(VersionInfo) <~: Tag(newTag)
+      val taged = od <~: od(VersionInfo) <~: List(Ver(od.version + 1),Tag(newTag))
       datas.remove(key,od)
       datas.put(key,taged)
 
-      val nd2 = taged <~: taged(VersionInfo) <~: Ver(taged.version + 1)
-      val latest = nd2 <~: nd2(VersionInfo) <~: Tag("")
+      val latest = taged <~: taged(VersionInfo) <~: List( Ver(taged.version + 1), Tag(""),EqTag(newTag))
       datas.put(key,latest)
       latest
     }
@@ -174,8 +176,11 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
         val vit = datas.valueIterator(key)
         if(vit.isEmpty)
           None
-        else
+        else{
+          if (delay > 0) Thread.sleep(delay)
           Some(vit.next())
+        }
+
       }
     }
   }
@@ -187,10 +192,6 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    */
   def versions(key: K): Seq[VersionInfo.Pack] = datas.values.map(pack =>
     pack(VersionInfo).get.asInstanceOf[VersionInfo.Pack]).toSeq
-//    vb.get(key) match {
-//    case None => Nil
-//    case Some(v) => verListFromJsValue(v)
-//  }
 
   /**
    * 删除指定文档
@@ -205,22 +206,6 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
       case (true,true) => mb.add(key); 1 //标记删除
       case (false,true) => datas.remove(key);mb.remove(key);1 //真正删除
     }
-
-//  (justMarkDelete, vb.contains(key)) match {
-//      case (_, false) => 0
-//      case (true, true) => mb.add(key); 1
-//      case (false, true) =>
-//        val verList = verListFromJsValue(vb.get(key).get)
-//        import zzb.datatype.VersionInfo._
-//        for (vInfo <- verList) {
-//          val verNum = vInfo(ver).get.value
-//          db.remove(ID(key, verNum))
-//        }
-//        vb.remove(key)
-//        nb.remove(key)
-//        mb.remove(key)
-//        1
-//    }
   }
 
 
@@ -246,6 +231,32 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
       }
     }
   }
+
+  /**
+   * 恢复文档的指定tag，复制指定的 tag 新建一个新版本，版本号增加
+   * @param key 主键
+   * @param targetTag 旧tag
+   * @return 新文档，如果没有找到指定版本的文档则返回None
+   */
+  def revert(key: K, targetTag: String): Option[T#Pack] = {
+    val vit = datas.valueIterator(key)
+    if(vit.isEmpty) None
+    else{
+      val latest = vit.next()
+      if(latest.eqtag == targetTag ) Some(latest)
+      else{
+        datas.findValue(key)(_.tag == targetTag) match {
+          case None => None
+          case Some(old) =>
+            val reverted = old <~: old(VersionInfo) <~: List(Ver(latest.version + 1), Tag(""),EqTag(targetTag))
+            datas.remove(key,latest)
+            datas.put(key, reverted)
+            Some(reverted)
+        }
+      }
+    }
+  }
+
 
   /**
    * 根据路径、值查询最新版本文档列表

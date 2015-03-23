@@ -42,7 +42,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @param isOwnerOperate 是否文档所有人
    * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
    */
-  def save(doc: T#Pack, operatorName: String, isOwnerOperate: Boolean,tag:Option[String] = None): T#Pack = {
+  def save(doc: T#Pack, operatorName: String, isOwnerOperate: Boolean,tag:String = ""): T#Pack = {
     val key = getKey(doc)
     import VersionInfo._
 
@@ -145,6 +145,14 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
         revertHistory(key, oldVer)
     }
   }
+
+  /**
+   * 恢复文档的指定tag，复制指定的 tag 新建一个新版本，版本号增加
+   * @param key 主键
+   * @param tag 旧tag
+   * @return 新文档，如果没有找到指定版本的文档则返回None
+   */
+  def revert(key: K, tag: String): Option[T#Pack] = ???
 
   private def revertHistory(key: K, oldVer: Int): Option[T#Pack] = {
     load(key, oldVer).map(v => save(v, "", isOwnerOperate = false))

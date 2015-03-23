@@ -23,6 +23,7 @@ object VersionInfo extends TStruct{
   val opt = Field(Operator)
   val isOwn = Field(IsOwnerOperate)
   val tag = FieldString(Tag,isRequired = true, default = "")
+  val eqtag = FieldString(EqTag,isRequired = true, default = "")
 }
 object VersionInfos extends TPackList[VersionInfo.Pack]{
   override val t_memo_ : String = "VersionList"
@@ -41,6 +42,11 @@ object Ver extends TInt {
 object Tag extends TString {
   val t_memo_ : String = "tag"
   override lazy val t_code_ = "tag"
+}
+
+object EqTag extends TString {
+  val t_memo_ : String = "eqtag"
+  override lazy val t_code_ = "eqtag"
 }
 
 object SaveTime extends TDateTime{
