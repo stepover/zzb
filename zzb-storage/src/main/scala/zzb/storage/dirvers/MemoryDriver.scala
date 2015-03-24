@@ -112,7 +112,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
       val savedPack = (pack <~ newVer).copy(revise = 0) //修订号清零
       datas.remove(key,od)
       datas.put(key, savedPack)
-      if(newTag != ""){
+      if(newTag  != ""){
         val latest = savedPack <~: savedPack(VersionInfo) <~: List( Ver(savedPack.version + 1), Tag(""),EqTag(newTag))
         datas.put(key,latest)
         latest

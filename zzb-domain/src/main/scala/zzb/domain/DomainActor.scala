@@ -567,7 +567,8 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
         val merge = params.get("merge")
         val action = params.get("action")
         entity(unpack(path.targetType)) {
-          pk => onComplete(execDirectAlter(doc, Some(pk), opt, path, merge, action, params)) {
+          pk =>
+            onComplete(execDirectAlter(doc, Some(pk), opt, path, merge, action, params)) {
             case Success(res) =>
               ctx =>
                 if (res._1 == OK) hlog(opt)(log.info("direct alter success,{} = {}", path, pk))

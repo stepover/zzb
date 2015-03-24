@@ -36,7 +36,10 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
     )
 
   def latest_f_init: Future[Option[T#Pack]] = {
-    val f = if (isNewCreate) createDoc else specStorage(-1) //不是新建，则从存储中装载
+    val f = if (isNewCreate)
+      createDoc
+    else
+      specStorage(-1) //不是新建，则从存储中装载
     //    f.onSuccess {
     //      case d => snapDoc = d
     //    }
@@ -87,6 +90,7 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
 
   def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true, newTag: String = ""): Future[Option[T#Pack]] = {
     //    snapDoc = Some(pack)
+    require(newTag ne null)
     val promise = Promise[Option[T#Pack]]()
     //if (onlyToMemoryCache) promise.success(Some(pack))
     //else {

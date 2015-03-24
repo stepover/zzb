@@ -74,11 +74,12 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
    * @param isOwnerOperate 是否文档所有人
    * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
    */
-  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,tag:String = "")(implicit ec: ExecutionContext): Future[T#Pack] = {
+  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,newTag:String = "")(implicit ec: ExecutionContext): Future[T#Pack] = {
+    require(newTag ne null)
     val key = driver.getKey(pack)
     inCache.remove(key)
     inCache.apply(key, () => Future {
-      driver.save(pack, operatorName, isOwnerOperate,tag)
+      driver.save(pack, operatorName, isOwnerOperate,newTag)
     })
   }
 
@@ -89,6 +90,7 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
    * @return 返回 tag 为空的最新版本
    */
   def tag(key :K,newTag:String)(implicit ec: ExecutionContext): Future[T#Pack] = {
+    require(newTag ne null)
     inCache.remove(key)
     inCache.apply(key, () => Future {
       driver.tag(key,newTag)

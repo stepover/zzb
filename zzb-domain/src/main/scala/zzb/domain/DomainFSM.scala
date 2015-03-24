@@ -196,14 +196,14 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
         hlog(sysopt)(log.debug("ApplyRevise:{} = {}", n.path, n.value.json))
         n.path.alterDomainData(d, Some(n.value), n.merge)
       }
-      doSave(newDoc, revise.opt,newTag, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender())
+      doSave(newDoc, revise.opt, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender(),newTag)
       stay()
     case Event(ApplyRevise(revise, replyTo,newTag, _), doc) =>
       val newDoc = revise.nodeRevises.foldLeft(doc) { (d, n) => //应用每一项修改
         hlog(sysopt)(log.debug("ApplyRevise:{} = {}", n.path, n.value.json))
         n.path.alterDomainData(d, Some(n.value), n.merge)
       }
-      doSave(newDoc, revise.opt,newTag, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender())
+      doSave(newDoc, revise.opt, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender(),newTag)
       stay()
   }
 
@@ -218,11 +218,12 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
       goto(executingState)
   }
 
-  protected def doSave(newDoc: T#Pack, opt: AuthorizedOperator,newTag :String = "", replyTo: ActorRef = context.sender()) :Unit = {
+  protected def doSave(newDoc: T#Pack, opt: AuthorizedOperator, replyTo: ActorRef = context.sender(),newTag :String = "") :Unit = {
 //    if (onlyToMemoryCache) {
 //      save(newDoc,opt.id, opt.isManager,onlyToMemoryCache)
 //      if (replyTo != null && replyTo != context.system.deadLetters) replyTo ! newDoc
 //    } else
+    require(newTag ne null)
       self ! LongTimeExec((nd, op) => save(nd, op.id, op.isManager,newTag), newDoc, opt, "SaveDoc", replyTo)
   }
 
@@ -293,7 +294,7 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
 
   implicit class UsingSaved(s : State) {
     def usingSaved(nextStateDate: T#Pack,opt:AuthorizedOperator, newTag:String = "",replyTo: ActorRef = context.sender()) = {
-      doSave(nextStateDate,opt,newTag,replyTo)
+      doSave(nextStateDate,opt,replyTo,newTag)
       s using nextStateDate
     }
 
