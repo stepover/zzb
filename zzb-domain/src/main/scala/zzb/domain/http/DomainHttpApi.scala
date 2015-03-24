@@ -39,6 +39,10 @@ trait DomainHttpApi[K, KT <: DataType[K], T <: TStorable[K, KT]]
         verNum =>
           docRoute
       } ~
+      pathPrefix("tag" / Segment) {
+        tag =>
+          docRoute
+      } ~
       pathPrefix(Segment) {
         case "latest" => docRoute
         case "alter" => alterManagerRoute

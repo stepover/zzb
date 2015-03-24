@@ -132,7 +132,8 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
 
     val revise = DocRevise(List(DocNodeRevise(NodePath(doc.dataType.me.path), doc, MergeManner.Replace)), operator)
 
-    val f1 = self ? ApplyRevise(revise, null, 1) //给自己发送事件，由状态机中的处理完成实际的存储
+
+    val f1 = self ? ApplyRevise(revise, null,params.getOrElse("tag", "") ,1) //给自己发送事件，由状态机中的处理完成实际的存储
     val res_f = if (action.isDefined) {
         for {
           v1 <- f1
@@ -190,19 +191,19 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   }
 
   def submitAlterHandler: StateFunction = {
-    case Event(ApplyRevise(revise, replyTo, 1), doc) =>
+    case Event(ApplyRevise(revise, replyTo,newTag, 1), doc) =>
       val newDoc = revise.nodeRevises.foldLeft(doc) { (d, n) => //应用每一项修改
         hlog(sysopt)(log.debug("ApplyRevise:{} = {}", n.path, n.value.json))
         n.path.alterDomainData(d, Some(n.value), n.merge)
       }
-      doSave(newDoc, revise.opt, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender())
+      doSave(newDoc, revise.opt,newTag, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender())
       stay()
-    case Event(ApplyRevise(revise, replyTo, _), doc) =>
+    case Event(ApplyRevise(revise, replyTo,newTag, _), doc) =>
       val newDoc = revise.nodeRevises.foldLeft(doc) { (d, n) => //应用每一项修改
         hlog(sysopt)(log.debug("ApplyRevise:{} = {}", n.path, n.value.json))
         n.path.alterDomainData(d, Some(n.value), n.merge)
       }
-      doSave(newDoc, revise.opt, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender())
+      doSave(newDoc, revise.opt,newTag, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender())
       stay()
   }
 
@@ -217,12 +218,12 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
       goto(executingState)
   }
 
-  protected def doSave(newDoc: T#Pack, opt: AuthorizedOperator, replyTo: ActorRef = context.sender()) :Unit = {
+  protected def doSave(newDoc: T#Pack, opt: AuthorizedOperator,newTag :String = "", replyTo: ActorRef = context.sender()) :Unit = {
 //    if (onlyToMemoryCache) {
 //      save(newDoc,opt.id, opt.isManager,onlyToMemoryCache)
 //      if (replyTo != null && replyTo != context.system.deadLetters) replyTo ! newDoc
 //    } else
-      self ! LongTimeExec((nd, op) => save(nd, op.id, op.isManager), newDoc, opt, "SaveDoc", replyTo)
+      self ! LongTimeExec((nd, op) => save(nd, op.id, op.isManager,newTag), newDoc, opt, "SaveDoc", replyTo)
   }
 
   protected override def anyToActionResult(any: Any): (StatusCode, ActionResult) = any match {
@@ -278,7 +279,7 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
     case Event(cmd: Action, _) =>
       stay() replying ((Forbidden, s"${stateName.toString} can't do ${cmd.name}"))
     case a =>
-      hlog(log.warning("Unhandled event {}", a.toString))
+      //hlog(log.warning("Unhandled event {}", a.toString))
       stay()
 
   }
@@ -291,8 +292,8 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   }
 
   implicit class UsingSaved(s : State) {
-    def usingSaved(nextStateDate: T#Pack,opt:AuthorizedOperator, replyTo: ActorRef = context.sender()) = {
-      doSave(nextStateDate,opt,replyTo)
+    def usingSaved(nextStateDate: T#Pack,opt:AuthorizedOperator, newTag:String = "",replyTo: ActorRef = context.sender()) = {
+      doSave(nextStateDate,opt,newTag,replyTo)
       s using nextStateDate
     }
 
@@ -312,7 +313,7 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   case class LongTimeExec(longExec: (T#Pack, AuthorizedOperator) => Future[Any],
                           doc: T#Pack, opt: AuthorizedOperator = sysopt, jobDesc: String, replyTo: ActorRef = sender()) extends AllowDelay
 
-  case class ApplyRevise(revise: DocRevise, replyTo: ActorRef = sender(), mark: Int = 0) extends AllowDelay
+  case class ApplyRevise(revise: DocRevise, replyTo: ActorRef = sender(),newTag:String = "" , mark: Int = 0) extends AllowDelay
 
 }
 

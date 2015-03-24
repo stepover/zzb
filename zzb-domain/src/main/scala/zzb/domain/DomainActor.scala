@@ -219,7 +219,9 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
 
     val p = Promise[(StatusCode, ActionResult)]()
 
-    val f1 = save(doc).map { savedDocOpt =>
+    val newTag = params.get("tag")
+
+    val f1 = save(doc,operator.id,operator.isManager,newTag.getOrElse("")).map { savedDocOpt =>
       val savedDoc = savedDocOpt.get
       hlog(log.info("saved! ver = {} revise = {}", savedDoc.version, savedDoc.revise))
       (StatusCodes.OK, ActionResult(0, "AlterOK", VersionRevise(savedDoc.version, savedDoc.revise)))
