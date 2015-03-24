@@ -60,6 +60,7 @@ trait AuthorizeDirectives {
     }
   }
 
+  def operatorCheck(f:Map[String,String] => Boolean):Directive0 = operator.require(opt => f(opt.roles),AuthorizationFailedRejection)
   def operatorIs(role:String): Directive0 = operator.require(_.roles.keySet.contains(role),AuthorizationFailedRejection)
   def operatorIs(roles:Set[String]): Directive0 = operator.require(_.roles.keys.exists(roles.contains),AuthorizationFailedRejection)
 
