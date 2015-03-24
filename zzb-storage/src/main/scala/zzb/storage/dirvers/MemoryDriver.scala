@@ -212,18 +212,18 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
   /**
    * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
    * @param key 主键
-   * @param oldVer 旧版本号
+   * @param targetVer 旧版本号
    * @return 新文档，如果没有找到指定版本的文档则返回None
    */
-  override def revert(key: K, oldVer: Int): Option[T#Pack] = {
+  override def revert(key: K, targetVer: Int): Option[T#Pack] = {
     import zzb.datatype.VersionInfo._
     val vit = datas.valueIterator(key)
     if(vit.isEmpty) None
     else{
       val latest = vit.next()
-      if(latest.version <= oldVer ) Some(latest)
+      if(latest.version <= targetVer ) Some(latest)
       else{
-        datas.findValue(key)(_.version == oldVer) match {
+        datas.findValue(key)(_.version == targetVer) match {
           case None => None
           case Some(old) =>
             Some(save(old, old(opt).get.value, old(isOwn).get.value))

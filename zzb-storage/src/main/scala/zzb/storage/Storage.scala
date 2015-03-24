@@ -85,13 +85,13 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
   /**
    * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本
    * @param key 主键
-   * @param tag 标签
+   * @param newTag 标签
    * @return 返回 tag 为空的最新版本
    */
-  def tag(key :K,tag:String)(implicit ec: ExecutionContext): Future[T#Pack] = {
+  def tag(key :K,newTag:String)(implicit ec: ExecutionContext): Future[T#Pack] = {
     inCache.remove(key)
     inCache.apply(key, () => Future {
-      driver.tag(key,tag)
+      driver.tag(key,newTag)
     })
   }
 
@@ -135,15 +135,15 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
   /**
    * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
    * @param key 主键
-   * @param oldVer 旧版本号
+   * @param targetVer 旧版本号
    * @return 新文档
    */
-  def revert(key: K, oldVer: Int)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = {
+  def revert(key: K, targetVer: Int)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = {
     val promise = Promise[Option[T#Pack]]()
 
     //寻找指定版本，不使用缓存
     Future {
-      driver.revert(key, oldVer)
+      driver.revert(key, targetVer)
     }.onComplete {
       case Success(ov) =>
         ov match {
@@ -161,15 +161,15 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
   /**
    * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
    * @param key 主键
-   * @param oldVer 旧版本号
+   * @param targetTag 旧版本号
    * @return 新文档
    */
-  def revert(key: K, tag: String)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = {
+  def revert(key: K, targetTag: String)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = {
     val promise = Promise[Option[T#Pack]]()
 
     //寻找指定版本，不使用缓存
     Future {
-      driver.revert(key, tag)
+      driver.revert(key, targetTag)
     }.onComplete {
       case Success(ov) =>
         ov match {
@@ -307,10 +307,20 @@ class SpecificStorage[K, KT <: DataType[K], T <: TStorable[K, KT]](val key: K, v
 
   def load(ver: Int = -1)(implicit ec: ExecutionContext) = storage.load(key, ver)
 
-  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true)(implicit ec: ExecutionContext) = {
+  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,newTag:String = "")(implicit ec: ExecutionContext) = {
     require(pack(pack.dataType.asInstanceOf[TStorable[K, KT]].keyType).get.value == key)
-    storage.save(pack, operatorName, isOwnerOperate)
+    storage.save(pack, operatorName, isOwnerOperate,newTag)
   }
+
+  /**
+   * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本
+   * @param newTag 标签
+   * @return 返回 tag 为空的最新版本
+   */
+  def tag(newTag:String)(implicit ec: ExecutionContext): Future[T#Pack] = {
+    storage.tag(key,newTag)
+  }
+
 
   def versions(implicit ec: ExecutionContext) = storage.versions(key)
 
@@ -330,10 +340,17 @@ class SpecificStorage[K, KT <: DataType[K], T <: TStorable[K, KT]](val key: K, v
 
   /**
    * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
-   * @param oldVer 旧版本号
+   * @param targetVer 旧版本号
    * @return 新文档
    */
-  def revert(oldVer: Int)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = storage.revert(key, oldVer)
+  def revert(targetVer: Int)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = storage.revert(key, targetVer)
+
+  /**
+   * 恢复文档的指定Tag版本，复制指定的旧版本新建一个新版本，版本号增加
+   * @param targetTag 旧版本号
+   * @return 新文档
+   */
+  def revert(targetTag: String)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = storage.revert(key, targetTag)
 }
 
 
@@ -387,18 +404,18 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
   /**
    * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
    * @param key 主键
-   * @param oldVer 旧版本号
+   * @param targetVer 旧版本号
    * @return 新文档，如果没有找到指定版本的文档则返回None
    */
-  def revert(key: K, oldVer: Int): Option[T#Pack]
+  def revert(key: K, targetVer: Int): Option[T#Pack]
 
   /**
    * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
    * @param key 主键
-   * @param tag 旧Tag
+   * @param targetTag 旧Tag
    * @return 新文档，如果没有找到指定版本的文档则返回None
    */
-  def revert(key: K, tag: String): Option[T#Pack]
+  def revert(key: K, targetTag: String): Option[T#Pack]
 
   /**
    * 保存文档新版本，如果指定了tag,将新保存的数据打上标签，版本固定。

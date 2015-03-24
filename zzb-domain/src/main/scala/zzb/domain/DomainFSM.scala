@@ -217,11 +217,11 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
       goto(executingState)
   }
 
-  protected def doSave(newDoc: T#Pack, opt: AuthorizedOperator, replyTo: ActorRef = context.sender(), onlyToMemoryCache: Boolean = false) :Unit = {
-    if (onlyToMemoryCache) {
-      save(newDoc,opt.id, opt.isManager,onlyToMemoryCache)
-      if (replyTo != null && replyTo != context.system.deadLetters) replyTo ! newDoc
-    } else
+  protected def doSave(newDoc: T#Pack, opt: AuthorizedOperator, replyTo: ActorRef = context.sender()) :Unit = {
+//    if (onlyToMemoryCache) {
+//      save(newDoc,opt.id, opt.isManager,onlyToMemoryCache)
+//      if (replyTo != null && replyTo != context.system.deadLetters) replyTo ! newDoc
+//    } else
       self ! LongTimeExec((nd, op) => save(nd, op.id, op.isManager), newDoc, opt, "SaveDoc", replyTo)
   }
 
@@ -292,14 +292,14 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
 
   implicit class UsingSaved(s : State) {
     def usingSaved(nextStateDate: T#Pack,opt:AuthorizedOperator, replyTo: ActorRef = context.sender()) = {
-      doSave(nextStateDate,opt,replyTo,onlyToMemoryCache = false)
+      doSave(nextStateDate,opt,replyTo)
       s using nextStateDate
     }
 
-    def usingCached(nextStateDate: T#Pack,opt:AuthorizedOperator, replyTo: ActorRef = context.sender()) = {
-      doSave(nextStateDate,opt,replyTo,onlyToMemoryCache = true)
-      s using nextStateDate
-    }
+//    def usingCached(nextStateDate: T#Pack,opt:AuthorizedOperator, replyTo: ActorRef = context.sender()) = {
+//      doSave(nextStateDate,opt,replyTo,onlyToMemoryCache = true)
+//      s using nextStateDate
+//    }
 
   }
 
