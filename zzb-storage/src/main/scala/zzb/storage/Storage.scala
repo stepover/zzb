@@ -305,6 +305,8 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
 class SpecificStorage[K, KT <: DataType[K], T <: TStorable[K, KT]](val key: K, val storage: Storage[K, KT, T]) {
   def apply(ver: Int = -1)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = storage.load(key, ver)
 
+  def apply(tag: String)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = storage.load(key, tag)
+
   def load(ver: Int = -1)(implicit ec: ExecutionContext) = storage.load(key, ver)
 
   def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,newTag:String = "")(implicit ec: ExecutionContext) = {

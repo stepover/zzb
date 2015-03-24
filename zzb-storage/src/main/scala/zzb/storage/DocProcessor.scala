@@ -77,18 +77,12 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
   //    promise.future
   //  }
 
-  def load(verNum: Int = -1, forceReload: Boolean = false): Future[Option[T#Pack]] = {
+  def load(verNum: Int = -1): Future[Option[T#Pack]] = {
     specStorage(verNum)
-    //    if (forceReload)
-    //      doReload(verNum)
-    //    else {
-    //      if (verNum < 0) latest
-    //      else {
-    //        val vd_f = verDocs.get(verNum)
-    //        if (vd_f != null) vd_f
-    //        else doReload(verNum)
-    //      }
-    //    }
+  }
+
+  def load(tag: String): Future[Option[T#Pack]] = {
+    specStorage(tag)
   }
 
   def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true, newTag: String = ""): Future[Option[T#Pack]] = {
@@ -186,5 +180,5 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
 
   def latestReload = load()
 
-  def version(n: Int) = load(n, forceReload = false)
+  def version(n: Int) = load(n)
 }
