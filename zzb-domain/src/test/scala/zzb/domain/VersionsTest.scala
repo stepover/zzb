@@ -62,7 +62,7 @@ class VersionsTest extends PlaneHttpTestBase {
       user(Get(s"/api/planes/$pid/versions")) ~> check {
         status mustBe OK
         val vv = JsonParser(body.asString)
-        VersionInfos.fromJsValue(JsonParser(body.asString)).length mustBe 2
+        VersionInfos.fromJsValue(JsonParser(body.asString)).length mustBe 1 //版本数量没有变，旧版本被覆盖
       }
     }
 
@@ -75,10 +75,8 @@ class VersionsTest extends PlaneHttpTestBase {
       user(Get(s"/api/planes/$pid/versions")) ~> check {
         status mustBe OK
         val vv = JsonParser(body.asString)
-        VersionInfos.fromJsValue(JsonParser(body.asString)).length > 1 mustBe true
+        VersionInfos.fromJsValue(JsonParser(body.asString)).length mustBe 1 //版本数量没有变，旧版本被覆盖
       }
-
     }
   }
-
 }

@@ -18,6 +18,8 @@ trait AuthorizeDirectives {
   import directives.BasicDirectives._
   import directives.RouteDirectives._
 
+  val defaultOperator: Option[AuthorizedOperator] = None
+
   /**
    * 提取当前请求的认证操作者
    * @return
@@ -34,7 +36,7 @@ trait AuthorizeDirectives {
       && header.lowercaseName.endsWith("-id")).map(header => header.lowercaseName.substring(2) -> header.value).map(
     kv => kv._1.substring(0,kv._1.length - 3) -> kv._2)
     val managers = Set("manager","admin","system")
-    if(roles.size == 0) Some(AuthorizedOperator.UnknownOperator)
+    if(roles.size == 0) defaultOperator
     else{
       val rolesMap = roles.toMap
       val isManager = rolesMap.keys.exists(managers.contains)
@@ -54,9 +56,9 @@ trait AuthorizeDirectives {
         case NonFatal(e) ⇒ Some(Left(MalformedHeaderRejection(headInfo, e.getMessage.nullAsEmpty, Some(e))))
       }
     extract(ctx => protectedF(ctx.request.headers)).flatMap  {
-      case Some(Right(a))        ⇒ provide(a)
+      case Some(Right(a)) ⇒ provide(a) //有数据且不再黑名单中
       case Some(Left(rejection)) ⇒ reject(rejection)
-      case None                  ⇒ reject
+      case None => reject
     }
   }
 
