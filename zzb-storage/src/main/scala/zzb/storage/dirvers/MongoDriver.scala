@@ -26,6 +26,12 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
 
   def dbname: String
 
+  def exist(key:K):Boolean = ???
+
+  def nextVerNum(key:K) :Int = ???
+
+  def put(key:K,pack: T#Pack,replace : Boolean = true) : T#Pack = ???
+
   /**
    * 获取下一个版本号
    * @param key 主键
@@ -34,9 +40,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   private def nextVersionNum(key: K) = this.currentVersion(key).fold(1)(f=>f(VersionInfo.ver()).get.value + 1)
 
   /**
-   * 保存文档新版本，如果指定了tag,将新保存的数据打上标签，版本固定。
-   * 同时复制一个版本号+1的新版本(tag为空)作为最新的版本.
-   * 如果指定 tag,就修改当前最新版本的内容,版本号会+1,但是不会克隆新的副本，不保存旧版本的文档数据
+   * 保存文档新版本
    * @param doc 文档数据
    * @param operatorName 操作者名称
    * @param isOwnerOperate 是否文档所有人
@@ -60,8 +64,6 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     saveHistory(newDoc)
     newDoc
   }
-
-  def tag(key :K,newTag:String): T#Pack = ???
 
   /**
    * 根据指定key装载指定标记的文档
@@ -125,38 +127,31 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     }
   }
 
-  /**
-   * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
-   * @param key 主键
-   * @param targetVer 旧版本号
-   * @return 新文档，如果没有找到指定版本的文档则返回None
-   */
-  def revert(key: K, targetVer: Int): Option[T#Pack] = {
-    val currentVer = currentVersion(key) match {
-      case None => -1
-      case Some(cVer) => cVer(VersionInfo.ver()).get.value
-    }
-
-    currentVer match {
-      case -1 => None
-      case `targetVer` =>
-        load(key, targetVer)
-      case _ =>
-        revertHistory(key, targetVer)
-    }
-  }
-
-  /**
-   * 恢复文档的指定tag，复制指定的 tag 新建一个新版本，版本号增加
-   * @param key 主键
-   * @param targetTag 旧tag
-   * @return 新文档，如果没有找到指定版本的文档则返回None
-   */
-  def revert(key: K, targetTag: String): Option[T#Pack] = ???
-
-  private def revertHistory(key: K, oldVer: Int): Option[T#Pack] = {
-    load(key, oldVer).map(v => save(v, "", isOwnerOperate = false))
-  }
+//  /**
+//   * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
+//   * @param key 主键
+//   * @param targetVer 旧版本号
+//   * @return 新文档，如果没有找到指定版本的文档则返回None
+//   */
+//  def revert(key: K, targetVer: Int): Option[T#Pack] = {
+//    val currentVer = currentVersion(key) match {
+//      case None => -1
+//      case Some(cVer) => cVer(VersionInfo.ver()).get.value
+//    }
+//
+//    currentVer match {
+//      case -1 => None
+//      case `targetVer` =>
+//        load(key, targetVer)
+//      case _ =>
+//        revertHistory(key, targetVer)
+//    }
+//  }
+//
+//
+//  private def revertHistory(key: K, oldVer: Int): Option[T#Pack] = {
+//    load(key, oldVer).map(v => save(v, "", isOwnerOperate = false))
+//  }
 
   /**
    * 获取最近的几个版本信息，最新的在前面

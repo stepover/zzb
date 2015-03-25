@@ -1,10 +1,9 @@
 package zzb.storage
 
 import com.mongodb.casbah.Imports
-import com.mongodb.util.JSON
+import org.joda.time.DateTime
 import spray.caching.SimpleLruCache
-import spray.json.JsonParser
-import zzb.datatype.{DataType, StructPath, VersionInfo}
+import zzb.datatype._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
@@ -21,6 +20,64 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
   val inCache = new SimpleLruCache[T#Pack](maxCache, initCache)
 
   def apply(key: K, ver: Int = -1)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = load(key, ver)
+
+
+  private def innerSave(key: K, pack: T#Pack, operatorName: String, isOwnerOperate: Boolean, newTag: String = ""): T#Pack = {
+    import zzb.datatype.VersionInfo._
+
+    val nextVerNum = driver.nextVerNum(key)
+    val firstSave = nextVerNum == 1
+    val newVer = VersionInfo(
+      ver := nextVerNum,
+      time := DateTime.now,
+      opt := operatorName,
+      isOwn := isOwnerOperate,
+      eqtag := "",
+      VersionInfo.tag := newTag
+    )
+    //val savedPack = (pack <~ newVer).copy(revise = 0) //修订号清零
+    val savedPack = driver.put(key, (pack <~ newVer).copy(revise = 0), !firstSave)
+    if (!firstSave && newTag != "") {
+      val latest = (savedPack <~: savedPack(VersionInfo) <~: List(Ver(driver.nextVerNum(key)), Tag(""), EqTag(newTag))).copy(revise = 0)
+      driver.put(key, latest, replace = false)
+    } else
+      savedPack
+  }
+
+  private def innerRevert(key: K, targetVer: Int): Option[T#Pack] = driver.load(key) match {
+    case None => None
+    case Some(latest) =>
+      if (latest.version <= targetVer) Some(latest)
+      else {
+        driver.load(key, targetVer) match {
+          case None => None
+          case Some(old) =>
+            val reverted = (old <~: old(VersionInfo) <~: List(Ver(driver.nextVerNum(key)), Tag(""), EqTag(old.eqtag))).copy(revise = 0)
+            Some(driver.put(key, reverted, replace = true))
+        }
+      }
+  }
+
+  /**
+   * 恢复文档的指定tag，复制指定的 tag 新建一个新版本，版本号增加
+   * @param key 主键
+   * @param targetTag 旧tag
+   * @return 新文档，如果没有找到指定版本的文档则返回None
+   */
+  private def innerRevert(key: K, targetTag: String): Option[T#Pack] = driver.load(key) match {
+    case None => None
+    case Some(latest) =>
+      if (latest.eqtag == targetTag) Some(latest)
+      else {
+        driver.load(key, targetTag) match {
+          case None => None
+          case Some(taged) =>
+            val reverted = (taged <~: taged(VersionInfo) <~: List(Ver(driver.nextVerNum(key)), Tag(""), EqTag(targetTag))).copy(revise = 0)
+            Some(driver.put(key, reverted, replace = true))
+        }
+      }
+
+  }
 
   /**
    * 从获取指定 key 的对象，如果缓存中没有找到会从 driver 中加载。若指定 onlyInCache 为true，则只从缓存加载。
@@ -61,8 +118,8 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
     promise.future
   }
 
-  def load(key:K,tag:String) (implicit ec: ExecutionContext): Future[Option[T#Pack]] = Future{
-      driver.load(key,tag)
+  def load(key: K, tag: String)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = Future {
+    driver.load(key, tag)
   }
 
   /**
@@ -74,12 +131,12 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
    * @param isOwnerOperate 是否文档所有人
    * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
    */
-  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,newTag:String = "")(implicit ec: ExecutionContext): Future[T#Pack] = {
+  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true, newTag: String = "")(implicit ec: ExecutionContext): Future[T#Pack] = {
     require(newTag ne null)
     val key = driver.getKey(pack)
     inCache.remove(key)
     inCache.apply(key, () => Future {
-      driver.save(pack, operatorName, isOwnerOperate,newTag)
+      innerSave(key, pack, operatorName, isOwnerOperate, newTag)
     })
   }
 
@@ -89,19 +146,31 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
    * @param newTag 标签
    * @return 返回 tag 为空的最新版本
    */
-  def tag(key :K,newTag:String)(implicit ec: ExecutionContext): Future[T#Pack] = {
+  def tag(key: K, newTag: String)(implicit ec: ExecutionContext): Future[T#Pack] = {
     require(newTag ne null)
     inCache.remove(key)
     inCache.apply(key, () => Future {
-      driver.tag(key,newTag)
+      innerTag(key, newTag)
     })
   }
 
+  private def innerTag(key: K, newTag: String): T#Pack = driver.load(key) match {
+    case None => throw KeyNotFountException(key.toString)
+    case Some(latest) =>
+      val taged = driver.put(key,
+        (latest <~: latest(VersionInfo) <~: List(Ver(driver.nextVerNum(key)), Tag(newTag))).copy(revise = 0),
+        replace = true
+      )
+      driver.put(key,
+        (taged <~: taged(VersionInfo) <~: List(Ver(driver.nextVerNum(key)), Tag(""), EqTag(newTag))).copy(revise = 0),
+        replace = false
+      )
+  }
 
 
-//  def save(pack: T#Pack, tag:String = "")(implicit ec: ExecutionContext): Future[T#Pack] = {
-//    save(pack,"",isOwnerOperate = true,tag)
-//  }
+  //  def save(pack: T#Pack, tag:String = "")(implicit ec: ExecutionContext): Future[T#Pack] = {
+  //    save(pack,"",isOwnerOperate = true,tag)
+  //  }
   /**
    * 获取最近的几个版本信息，最新的在前面
    * @param key 主键
@@ -145,7 +214,7 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
 
     //寻找指定版本，不使用缓存
     Future {
-      driver.revert(key, targetVer)
+      innerRevert(key, targetVer)
     }.onComplete {
       case Success(ov) =>
         ov match {
@@ -171,7 +240,7 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
 
     //寻找指定版本，不使用缓存
     Future {
-      driver.revert(key, targetTag)
+      innerRevert(key, targetTag)
     }.onComplete {
       case Success(ov) =>
         ov match {
@@ -190,7 +259,7 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
   /**
    * 根据路径、值查询最新版本文档列表
    **/
-  def query(params: List[(StructPath, Any,String)])(implicit ec: ExecutionContext): Future[List[T#Pack]] = {
+  def query(params: List[(StructPath, Any, String)])(implicit ec: ExecutionContext): Future[List[T#Pack]] = {
     val promise = Promise[List[T#Pack]]()
 
     Future {
@@ -208,7 +277,7 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
   /**
    * 根据路径、值查询最新版本文档列表
    **/
-  def query( dbObjcet: Imports.DBObject)(implicit ec: ExecutionContext): Future[List[T#Pack]] = {
+  def query(dbObjcet: Imports.DBObject)(implicit ec: ExecutionContext): Future[List[T#Pack]] = {
     val promise = Promise[List[T#Pack]]()
 
     Future {
@@ -223,12 +292,12 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
     promise.future
   }
 
-  def queryWithLimit(dbObjcet: Imports.DBObject,limit:Int=10,skip:Int=0)(implicit ec: ExecutionContext):Future[List[T#Pack]]={
+  def queryWithLimit(dbObjcet: Imports.DBObject, limit: Int = 10, skip: Int = 0)(implicit ec: ExecutionContext): Future[List[T#Pack]] = {
     val promise = Promise[List[T#Pack]]()
 
     Future {
       try {
-        promise.success(driver.queryWithLimit(dbObjcet,limit,skip))
+        promise.success(driver.queryWithLimit(dbObjcet, limit, skip))
       }
       catch {
         case e: Throwable =>
@@ -238,12 +307,12 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
     promise.future
   }
 
-  def queryWithLimitSort(dbObjcet: Imports.DBObject,limit:Int=10,skip:Int=0,sort: Imports.DBObject)(implicit ec: ExecutionContext):Future[List[T#Pack]]={
+  def queryWithLimitSort(dbObjcet: Imports.DBObject, limit: Int = 10, skip: Int = 0, sort: Imports.DBObject)(implicit ec: ExecutionContext): Future[List[T#Pack]] = {
     val promise = Promise[List[T#Pack]]()
 
     Future {
       try {
-        promise.success(driver.queryWithLimitSort(dbObjcet,limit,skip,sort))
+        promise.success(driver.queryWithLimitSort(dbObjcet, limit, skip, sort))
       }
       catch {
         case e: Throwable =>
@@ -253,7 +322,7 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
     promise.future
   }
 
-  def count(dbObjcet: Imports.DBObject)(implicit ec: ExecutionContext):Future[Int]={
+  def count(dbObjcet: Imports.DBObject)(implicit ec: ExecutionContext): Future[Int] = {
     val promise = Promise[Int]()
 
     Future {
@@ -311,9 +380,9 @@ class SpecificStorage[K, KT <: DataType[K], T <: TStorable[K, KT]](val key: K, v
 
   def load(ver: Int = -1)(implicit ec: ExecutionContext) = storage.load(key, ver)
 
-  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,newTag:String = "")(implicit ec: ExecutionContext) = {
+  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true, newTag: String = "")(implicit ec: ExecutionContext) = {
     require(pack(pack.dataType.asInstanceOf[TStorable[K, KT]].keyType).get.value == key)
-    storage.save(pack, operatorName, isOwnerOperate,newTag)
+    storage.save(pack, operatorName, isOwnerOperate, newTag)
   }
 
   /**
@@ -321,8 +390,8 @@ class SpecificStorage[K, KT <: DataType[K], T <: TStorable[K, KT]](val key: K, v
    * @param newTag 标签
    * @return 返回 tag 为空的最新版本
    */
-  def tag(newTag:String)(implicit ec: ExecutionContext): Future[T#Pack] = {
-    storage.tag(key,newTag)
+  def tag(newTag: String)(implicit ec: ExecutionContext): Future[T#Pack] = {
+    storage.tag(key, newTag)
   }
 
 
@@ -366,6 +435,12 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
     pack(pack.dataType.asInstanceOf[TStorable[K, KT]].keyType).get.value
   }
 
+  def exist(key: K): Boolean
+
+  def nextVerNum(key: K): Int
+
+  def put(key: K, pack: T#Pack, replace: Boolean ): T#Pack
+
   /**
    * 根据指定key装载版本最新文档
    * @param key 主键
@@ -387,7 +462,7 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
    * @param tag 标签
    * @return 文档
    */
-  def load(key: K,tag:String): Option[T#Pack]
+  def load(key: K, tag: String): Option[T#Pack]
 
 
   /**
@@ -406,41 +481,6 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
   def delete(key: K, justMarkDelete: Boolean): Int
 
   /**
-   * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
-   * @param key 主键
-   * @param targetVer 旧版本号
-   * @return 新文档，如果没有找到指定版本的文档则返回None
-   */
-  def revert(key: K, targetVer: Int): Option[T#Pack]
-
-  /**
-   * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
-   * @param key 主键
-   * @param targetTag 旧Tag
-   * @return 新文档，如果没有找到指定版本的文档则返回None
-   */
-  def revert(key: K, targetTag: String): Option[T#Pack]
-
-  /**
-   * 保存文档新版本，如果指定了tag,将新保存的数据打上标签，版本固定。
-   * 同时复制一个版本号+1的新版本(tag为空)作为最新的版本.
-   * 如果指定 tag,就修改当前最新版本的内容,版本号会+1,但是不会克隆新的副本，不保存旧版本的文档数据
-   * @param pack 文档数据
-   * @param operatorName 操作者名称
-   * @param isOwnerOperate 是否文档所有人
-   * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
-   */
-  def save(pack: T#Pack, operatorName: String, isOwnerOperate: Boolean,tag:String = ""): T#Pack
-
-  /**
-   * 将当前的数据打上标签，版本固定。同时复制一个版本号+1的新版本(tag为空)作为最新的版本
-   * @param key 主键
-   * @param newTag 标签
-   * @return 返回 tag 为空的最新版本
-   */
-  def tag(key :K,newTag:String): T#Pack
-
-  /**
    * 根据路径、值查询最新版本文档列表
    * @param params 路径，值键值对参数序列
    **/
@@ -454,19 +494,22 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
     find(params: _*)
   }
 
-  def query(params: (StructPath, Any,String)*): List[T#Pack] =List.empty
+  def query(params: (StructPath, Any, String)*): List[T#Pack] = List.empty
 
-  def query(params: List[(StructPath, Any,String)]): List[T#Pack] = {
+  def query(params: List[(StructPath, Any, String)]): List[T#Pack] = {
     query(params: _*)
   }
-  def query(dbObjcet: Imports.DBObject):List[T#Pack]=List.empty
 
-  def queryWithLimit(dbObjcet: Imports.DBObject,limit:Int=10,skip:Int=0):List[T#Pack] =List.empty
-  def queryWithLimitSort(dbObjcet: Imports.DBObject,limit:Int=10,skip:Int=0,sort:Imports.DBObject):List[T#Pack] =List.empty
-  def count(dbObjcet: Imports.DBObject):Int =0
+  def query(dbObjcet: Imports.DBObject): List[T#Pack] = List.empty
+
+  def queryWithLimit(dbObjcet: Imports.DBObject, limit: Int = 10, skip: Int = 0): List[T#Pack] = List.empty
+
+  def queryWithLimitSort(dbObjcet: Imports.DBObject, limit: Int = 10, skip: Int = 0, sort: Imports.DBObject): List[T#Pack] = List.empty
+
+  def count(dbObjcet: Imports.DBObject): Int = 0
 
 }
 
-case class DuplicateTagException(key:String,tag:String) extends Exception(s"DuplicateTag '$tag' for key '$key' ")
+case class DuplicateTagException(key: String, tag: String) extends Exception(s"DuplicateTag '$tag' for key '$key' ")
 
-case class KeyNotFountException(key:String) extends Exception(s"Not fount key '$key'")
+case class KeyNotFountException(key: String) extends Exception(s"Not fount key '$key'")

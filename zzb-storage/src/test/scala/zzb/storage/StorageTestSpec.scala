@@ -115,7 +115,7 @@ trait StorageBehaviors  {
 
       import UserInfo._
       val v1Changed = v1 <~ UserInfo(userName := "Simon", userAge := 39 ,male := true)
-      val v2 = storage.save(v1Changed).await //保存动作会创建新版本，但是会把旧版本覆盖（只有打了tag的版本才会保留副本）
+      val v2 = storage.save(v1Changed).await //保存动作会增加版本号，但是会把旧版本实例覆盖（只有打了tag的版本才会保留副本）
       assert(v2.version === 2)
       assert(v2.revise === 0)
 
