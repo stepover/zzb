@@ -597,8 +597,9 @@ trait TStruct extends DataType[StructValue] {
     }
 
     def eqtag: String = this(VersionInfo) match {
-      case None => ""
-      case Some(v) => v(EqTag).get.value
+      //case Some(v)  => v(EqTag).get.value
+      case Some(v) if this.revise == 0 => v(EqTag).get.value
+      case _ => ""
     }
 
     //对指定的某个字段的值执行一个函数，用函数的结果值替换这个字段的值，返回新的结构实例
