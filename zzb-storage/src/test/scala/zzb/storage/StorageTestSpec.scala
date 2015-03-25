@@ -80,10 +80,13 @@ trait StorageBehaviors  {
 
       val u1Saved = storage.save(u1).await
 
+      assert(u1Saved.revise === 0) //保存后的数据修订号都是0
+
       assert(u1Saved.version === 1)
       assert(storage.cacheSize === 1)
       val u1Loaded = storage.load(k1).await.get
       assert(u1Loaded === u1Saved)
+      assert(u1Loaded.revise === 0) //新装载的数据修订号都是0
     }
     it should "利用缓存加速数据的装载" in {
       storage.cacheClear() //清除缓存
@@ -114,6 +117,7 @@ trait StorageBehaviors  {
       val v1Changed = v1 <~ UserInfo(userName := "Simon", userAge := 39 ,male := true)
       val v2 = storage.save(v1Changed).await //保存动作会创建新版本，但是会把旧版本覆盖（只有打了tag的版本才会保留副本）
       assert(v2.version === 2)
+      assert(v2.revise === 0)
 
       val vlist2 = storage.versions(k1).await
       assert(vlist2.size === 1)   //版本数量不变
@@ -121,9 +125,12 @@ trait StorageBehaviors  {
 
       val v2Loaded = storage(k1).await.get
       assert(v2Loaded === v2)
+      assert(v2Loaded.revise ===0)
 
       val v2LoadedAgain = storage.load(k1, 2).await.get
       assert(v2LoadedAgain === v2)
+      assert(v2LoadedAgain.revise ===0)
+
     }
 
     it should "保存数据时指出操作者" in {
@@ -176,21 +183,29 @@ trait StorageBehaviors  {
     it should "可以给数据增加 tag" in {
       import UserInfo._
       val vlt1Before = storage.versions(k1).await
-      val t1Before =storage.load(k1).await.get
+      val t1Before = storage.load(k1).await.get
+      assert(t1Before.revise ===0)
+
       val t1Done = storage.tag(k1,t1).await
+      assert(t1Done.revise ===0)
+
       val vlt1Done = storage.versions(k1).await
+
       assert( t1Done.version - t1Before.version === 2) //打tag 增加一个版本号，返回无tag版本再增加一个版本号
       assert(t1Done.tag === "") // 打tag 动作返回的最新版本没有tag
       assert(t1Done.eqtag === t1)  // 打tag 动作返回的最新版本的eqtag等于t1
       assert(vlt1Done.size - vlt1Before.size === 1  ) //打 tag 版本数量增加 1
+
       val t2Before = storage.save(t1Done).await //修改数据后再次保存
       val vlt2Before = storage.versions(k1).await
+
       assert( t2Before.version - t1Done.version === 1) //版本号加1
       assert( t2Before.eqtag === "") //etag 会被清理掉
       assert(vlt2Before.size - vlt1Done.size === 0  ) //版本数量不变
 
       val t2Changed = t2Before <~ UserInfo(userName := "jack", userAge := 40 ,male := false)
       val t2Done = storage.save(t2Changed,"",isOwnerOperate = true,t2).await //保存新数据同时打标签
+      assert(t2Done.revise ===0)
       val vlt2Done = storage.versions(k1).await
 
       assert(t2Done.version - t2Before.version === 2  ) //保存并打 tag 版本号增加 2
@@ -199,6 +214,12 @@ trait StorageBehaviors  {
       assert(t2Done.eqtag === t2)  // 打tag 动作返回的最新版本的eqtag等于t2
 
       assert(t2Done(userInfo().userName()).get.value=="jack")
+
+      val t3Changed = t2Done <~  UserInfo(userName := "vivian", userAge := 40 ,male := false)
+
+      assert(t3Changed.eqtag === "")  // 任何数据改变都会把 eqtag 清空
+
+
     }
 
     it should "可以恢复数据的旧版本号" in {
@@ -232,6 +253,8 @@ trait StorageBehaviors  {
       assert(verCount1 === verCount2) //版本数量不变
 
       val vt2 = storage.load(k1).await.get
+      assert(vt2.revise === 0)
+
       assert(t2Reverted === vt2)
       assert(vt2.tag === "")
       assert(vt2.eqtag === t2)

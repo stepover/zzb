@@ -23,11 +23,12 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
 
   type VersionList = List[VersionInfo.Pack]
 
-  protected final val datas = new Index[K, T#Pack](100, new Comparator[T#Pack] {
+  type MemDB = Index[K, T#Pack]
+
+  protected final val db = new MemDB(100, new Comparator[T#Pack] {
     override def compare(o1: T#Pack, o2: T#Pack): Int = o2.version.compareTo(o1.version) //保证降序排列
   })
-
-
+  
   implicit def versionListWrap(verList: VersionList) = VersionListWrap(verList)
 
   case class VersionListWrap(verList: VersionList) {
@@ -96,7 +97,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
         VersionInfo.tag := newTag
       )
       val savedPack = (pack <~ newVer).copy(revise = 0) //修订号清零
-      datas.put(key, savedPack)
+      db.put(key, savedPack)
       savedPack
     }
 
@@ -110,17 +111,17 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
         VersionInfo.tag := newTag
       )
       val savedPack = (pack <~ newVer).copy(revise = 0) //修订号清零
-      datas.remove(key,od)
-      datas.put(key, savedPack)
+      db.remove(key,od)
+      db.put(key, savedPack)
       if(newTag  != ""){
-        val latest = savedPack <~: savedPack(VersionInfo) <~: List( Ver(savedPack.version + 1), Tag(""),EqTag(newTag))
-        datas.put(key,latest)
+        val latest = (savedPack <~: savedPack(VersionInfo) <~: List( Ver(savedPack.version + 1), Tag(""),EqTag(newTag))).copy(revise = 0)
+        db.put(key,latest)
         latest
       }else
         savedPack
     }
 
-    val vit = datas.valueIterator(key)
+    val vit = db.valueIterator(key)
     if (vit.isEmpty)
       firstSave
     else
@@ -134,16 +135,16 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @return 返回 tag 为空的最新版本
    */
   def tag(key: K, newTag: String): T#Pack = {
-    val vit = datas.valueIterator(key)
+    val vit = db.valueIterator(key)
     if (vit.isEmpty) throw  KeyNotFountException(key.toString)
     else{
       val od = vit.next()
-      val taged = od <~: od(VersionInfo) <~: List(Ver(od.version + 1),Tag(newTag))
-      datas.remove(key,od)
-      datas.put(key,taged)
+      val taged = (od <~: od(VersionInfo) <~: List(Ver(od.version + 1),Tag(newTag))).copy(revise = 0)
+      db.remove(key,od)
+      db.put(key,taged)
 
-      val latest = taged <~: taged(VersionInfo) <~: List( Ver(taged.version + 1), Tag(""),EqTag(newTag))
-      datas.put(key,latest)
+      val latest = (taged <~: taged(VersionInfo) <~: List( Ver(taged.version + 1), Tag(""),EqTag(newTag))).copy(revise = 0)
+      db.put(key,latest)
       latest
     }
   }
@@ -155,7 +156,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @return 文档
    */
   def load(key: K, tag: String): Option[T#Pack] = {
-    datas.findValue(key)(_.tag == tag)
+    db.findValue(key)(_.tag == tag)
   }
 
   /**
@@ -168,12 +169,12 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     if (verNum >= 0) {
       //指定版本时无论是否标记删除都装载
       if (delay > 0) Thread.sleep(delay)
-      datas.findValue(key)(_.version == verNum)
+      db.findValue(key)(_.version == verNum)
     }
     else {
       if (mb.contains(key)) None //装最新版时检查是否已经标记删除
       else {
-        val vit = datas.valueIterator(key)
+        val vit = db.valueIterator(key)
         if(vit.isEmpty)
           None
         else{
@@ -190,7 +191,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param key 主键
    * @return 文档版本信息列表
    */
-  def versions(key: K): Seq[VersionInfo.Pack] = datas.values.map(pack =>
+  def versions(key: K): Seq[VersionInfo.Pack] = db.values.map(pack =>
     pack(VersionInfo).get.asInstanceOf[VersionInfo.Pack]).toSeq
 
   /**
@@ -200,11 +201,11 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @return 删除数量 1 或 0
    */
   override def delete(key: K, justMarkDelete: Boolean): Int = {
-    val vit = datas.valueIterator(key)
+    val vit = db.valueIterator(key)
     (justMarkDelete,vit.nonEmpty ) match {
       case (_, false) => 0  //指定的key不存在
       case (true,true) => mb.add(key); 1 //标记删除
-      case (false,true) => datas.remove(key);mb.remove(key);1 //真正删除
+      case (false,true) => db.remove(key);mb.remove(key);1 //真正删除
     }
   }
 
@@ -217,13 +218,13 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    */
   override def revert(key: K, targetVer: Int): Option[T#Pack] = {
     import zzb.datatype.VersionInfo._
-    val vit = datas.valueIterator(key)
+    val vit = db.valueIterator(key)
     if(vit.isEmpty) None
     else{
       val latest = vit.next()
       if(latest.version <= targetVer ) Some(latest)
       else{
-        datas.findValue(key)(_.version == targetVer) match {
+        db.findValue(key)(_.version == targetVer) match {
           case None => None
           case Some(old) =>
             Some(save(old, old(opt).get.value, old(isOwn).get.value))
@@ -239,18 +240,18 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @return 新文档，如果没有找到指定版本的文档则返回None
    */
   def revert(key: K, targetTag: String): Option[T#Pack] = {
-    val vit = datas.valueIterator(key)
+    val vit = db.valueIterator(key)
     if(vit.isEmpty) None
     else{
       val latest = vit.next()
       if(latest.eqtag == targetTag ) Some(latest)
       else{
-        datas.findValue(key)(_.tag == targetTag) match {
+        db.findValue(key)(_.tag == targetTag) match {
           case None => None
           case Some(old) =>
-            val reverted = old <~: old(VersionInfo) <~: List(Ver(latest.version + 1), Tag(""),EqTag(targetTag))
-            datas.remove(key,latest)
-            datas.put(key, reverted)
+            val reverted = (old <~: old(VersionInfo) <~: List(Ver(latest.version + 1), Tag(""),EqTag(targetTag))).copy(revise = 0)
+            db.remove(key,latest)
+            db.put(key, reverted)
             Some(reverted)
         }
       }
@@ -273,6 +274,6 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
             }
         }
       }
-    datas.keys.map(k => datas.valueIterator(k).next()).filter(doc => query(doc)).toList
+    db.keys.map(k => db.valueIterator(k).next()).filter(doc => query(doc)).toList
   }
 }
