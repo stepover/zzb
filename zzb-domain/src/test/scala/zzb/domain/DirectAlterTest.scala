@@ -62,6 +62,32 @@ class DirectAlterTest extends PlaneHttpTestBase {
       }
     }
 
+    "可以在修改数据的同时要求对当前版本打标记" in {
+
+      manager(Put(s"/api/planes/$pid/alter/foods/water?tag=t1", TInt(666).json)) ~> check {
+        status mustBe OK
+      }
+
+      user(Get(s"/api/planes/$pid/latest/foods/water")) ~> check {
+        status mustBe OK
+        TInt.fromJsValue(JsonParser(body.asString)).value mustBe 666
+      }
+
+      manager(Put(s"/api/planes/$pid/alter/foods/water", TInt(5).json)) ~> check {
+        status mustBe OK
+      }
+
+      user(Get(s"/api/planes/$pid/latest/foods/water")) ~> check {
+        status mustBe OK
+        TInt.fromJsValue(JsonParser(body.asString)).value mustBe 5
+      }
+
+      user(Get(s"/api/planes/$pid/tag/t1/foods/water")) ~> check {
+        status mustBe OK
+        TInt.fromJsValue(JsonParser(body.asString)).value mustBe 666
+      }
+    }
+
     "有其他变更会话在进行时，如果修改的数据有重叠路径会报冲突(409)" in {
       //管理员请求创建一个新的Alter会话，要求修改部分数据
       manager(Post(s"/api/planes/$pid/alter/foods")) ~> check {

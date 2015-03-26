@@ -34,6 +34,7 @@ import scala.util.{Failure, Random, Success, Try}
  * URL段说明
  * 1.   /latest/{/...}                    【Get】          对最新版本的操作请求，一般只有Get动作，不支持Put修改
  * 2.   /ver/{versionNum}/{/...}          【Get】          对指定版本的操作请求，也是只读(Get)
+ *      /tag/{tagStr}/{/...}              【Get】          对指定Tag的操作请求，也是只读(Get)
  * 3.   /versions                         【Get】          获得版本列表
  * 4.   /alter{/...}                      【Put/Delete】   直接修改指定路径的数据（会将变更会话的 “创建”、“修改”、“提交”一次完成
  * 5.   /alter{/...}                      【Post】         申请修改指定路径,返回用于修改的URL(包含一个修改会话码，alterSid),如果已经有人在修改，返回修改者的工号或业管号
@@ -110,7 +111,10 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
       pathPrefix("ver" / IntNumber) {
         verNum: Int =>
           docFutureRoute(load(verNum))
-      } ~ pathPrefix(Segment) {
+      } ~ pathPrefix("tag" / Segment) {
+      tag =>
+        docFutureRoute(load(tag))
+    } ~ pathPrefix(Segment) {
       case "latest" => docFutureRoute(latest)
       case "alter" => alterRoute
       case "versions" => versionsRoute
@@ -215,7 +219,9 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
 
     val p = Promise[(StatusCode, ActionResult)]()
 
-    val f1 = save(doc).map { savedDocOpt =>
+    val newTag = params.get("tag")
+
+    val f1 = save(doc,operator.id,operator.isManager,newTag.getOrElse("")).map { savedDocOpt =>
       val savedDoc = savedDocOpt.get
       hlog(log.info("saved! ver = {} revise = {}", savedDoc.version, savedDoc.revise))
       (StatusCodes.OK, ActionResult(0, "AlterOK", VersionRevise(savedDoc.version, savedDoc.revise)))
@@ -561,7 +567,8 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
         val merge = params.get("merge")
         val action = params.get("action")
         entity(unpack(path.targetType)) {
-          pk => onComplete(execDirectAlter(doc, Some(pk), opt, path, merge, action, params)) {
+          pk =>
+            onComplete(execDirectAlter(doc, Some(pk), opt, path, merge, action, params)) {
             case Success(res) =>
               ctx =>
                 if (res._1 == OK) hlog(opt)(log.info("direct alter success,{} = {}", path, pk))
