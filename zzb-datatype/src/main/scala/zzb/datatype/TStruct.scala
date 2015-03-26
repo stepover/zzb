@@ -60,13 +60,13 @@ StructValue(values: Map[String, ValuePack[Any]],
   def fields = values.values.toList
 
   def plus(value: ValuePack[Any]) = {
-    if (fieldMap.contains(value.code))
+    if (fieldMap.contains(value.code) && value.value != null)
       StructValue(values + (value.code -> value), fieldMap, requiredField)
     else this
   }
 
   def plusList(vs: Seq[ValuePack[Any]]) =
-    StructValue(values ++ vs.filter(v => fieldMap.contains(v.code)).map(fv => fv.code -> fv), fieldMap, requiredField)
+    StructValue(values ++ vs.filter(v => fieldMap.contains(v.code) && v.value!= null).map(fv => fv.code -> fv), fieldMap, requiredField)
 
 
   def sub(dt: DataType[Any]) = {
@@ -132,7 +132,7 @@ StructValue(values: Map[String, ValuePack[Any]],
       false
   }
 
-  override def toString = values.toString()
+  override def toString = values.filter(_._2.value != null).toString()
 }
 
 
@@ -274,7 +274,7 @@ trait TStruct extends DataType[StructValue] {
         case p: Pack => apply(p.value)
         case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)) yield (v.code, v)).toMap)
       }
-    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)) yield (v.code, v)).toMap)
+    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)  && v.value !=null  ) yield (v.code, v)).toMap)
   }
 
   def apply(v: StructValue): Pack = makeValuePackWithDefault(v.values)
@@ -612,8 +612,9 @@ trait TStruct extends DataType[StructValue] {
     }
 
     override def toJsValue: JsValue = JsObject {
-      value.values.map {
-        case (key, vp) => key -> vp.toJsValue
+      value.values.filter(_._2.value != null ).map {
+        case (key, vp)  =>
+          key -> vp.toJsValue
       }
     }
 
