@@ -27,6 +27,8 @@ object Plane extends TStorable[String, TString] {
 
   val StopTimes = TStrKeyMap[Int]("stopTimes","经停时间")
 
+  val Vips = TStrKeyMap[Boolean]("vips","记录乘客是否为vip")
+
   //-------------------------------
 
   val id = FieldString(TString("id", "编号"), isRequired = true)
@@ -50,6 +52,8 @@ object Plane extends TStorable[String, TString] {
   val cargo = FieldMap(Cargos)
 
   val stopTimes = FieldMap(StopTimes)
+
+  val vips = FieldMap(Vips)
 
   //用于单元测试检查结果
   val message = FieldString(TString("message", "信息"), isRequired = true,default = "")
