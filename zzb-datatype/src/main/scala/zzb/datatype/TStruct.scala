@@ -274,7 +274,7 @@ trait TStruct extends DataType[StructValue] {
         case p: Pack => apply(p.value)
         case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)) yield (v.code, v)).toMap)
       }
-    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code) /* && v.value !=null */ ) yield (v.code, v)).toMap)
+    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)  && v.value !=null  ) yield (v.code, v)).toMap)
   }
 
   def apply(v: StructValue): Pack = makeValuePackWithDefault(v.values)
