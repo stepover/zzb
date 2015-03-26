@@ -26,47 +26,29 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
 
   def dbname: String
 
-  def exist(key:K):Boolean = ???
 
+  /**
+   * 指定主键的下一个版本号，从 1 开始。每次调用返回下一个可用的版本，版本号返回后就认为已被使用。
+   * 永远自增
+   * @param key 数据主键
+   * @return
+   */
   def nextVerNum(key:K) :Int = ???
 
+  /**
+   * 保存数据。每一个主键都有一个多个版本的列表。replace 为 true 时用提供的版本覆盖数据库中的当前最新版本。
+   * 当 replace 为false 时数据库中的当前最新版本被保留，参数中提供的版本作为一个新的版本实例保存。
+   * 保存过程不会修改提供的数据中的版本信息。
+   * @param key 主键
+   * @param pack 文档数据
+   * @param replace 是否覆盖当前数据库版本
+   * @return 返回文档自身（数据库操作完成后的最新版本，也就是参数中提供的版本）
+   */
   def put(key:K,pack: T#Pack,replace : Boolean = true) : T#Pack = ???
 
   /**
-   * 获取下一个版本号
-   * @param key 主键
-   * @return 下一个版本号
-   */
-  private def nextVersionNum(key: K) = this.currentVersion(key).fold(1)(f=>f(VersionInfo.ver()).get.value + 1)
-
-  /**
-   * 保存文档新版本
-   * @param doc 文档数据
-   * @param operatorName 操作者名称
-   * @param isOwnerOperate 是否文档所有人
-   * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
-   */
-  def save(doc: T#Pack, operatorName: String, isOwnerOperate: Boolean,newTag:String = ""): T#Pack = {
-    val key = getKey(doc)
-    import VersionInfo._
-
-    val newVerNum = nextVersionNum(key)
-    val newVer = VersionInfo(
-      ver := newVerNum,
-      time := DateTime.now,
-      opt := operatorName, isOwn := isOwnerOperate)
-
-    val newDoc = doc <~ newVer
-    logger.debug(s"save doc #${key.toString},newVer: #${newVerNum.toString}")
-    if (delay > 0) Thread.sleep(delay)
-
-    doSave(newVerNum, newDoc)
-    saveHistory(newDoc)
-    newDoc
-  }
-
-  /**
-   * 根据指定key装载指定标记的文档
+   * 根据指定key装载指定标记的文档。
+   * 文档中 verInfo->tag 字段保存着文档的 tag 标签，装载对应标签的文档。
    * @param key 主键
    * @param tag 标签
    * @return 文档
@@ -88,6 +70,41 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
       historyCollection(c => convertDBObject(c.findOne(uuid_key)))
     }
   }
+
+  /**
+   * 获取下一个版本号
+   * @param key 主键
+   * @return 下一个版本号
+   */
+  private def nextVersionNum(key: K) = this.currentVersion(key).fold(1)(f=>f(VersionInfo.ver()).get.value + 1)
+
+//  /**
+//   * 保存文档新版本
+//   * @param doc 文档数据
+//   * @param operatorName 操作者名称
+//   * @param isOwnerOperate 是否文档所有人
+//   * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
+//   */
+//  def save(doc: T#Pack, operatorName: String, isOwnerOperate: Boolean,newTag:String = ""): T#Pack = {
+//    val key = getKey(doc)
+//    import VersionInfo._
+//
+//    val newVerNum = nextVersionNum(key)
+//    val newVer = VersionInfo(
+//      ver := newVerNum,
+//      time := DateTime.now,
+//      opt := operatorName, isOwn := isOwnerOperate)
+//
+//    val newDoc = doc <~ newVer
+//    logger.debug(s"save doc #${key.toString},newVer: #${newVerNum.toString}")
+//    if (delay > 0) Thread.sleep(delay)
+//
+//    doSave(newVerNum, newDoc)
+//    saveHistory(newDoc)
+//    newDoc
+//  }
+
+
 
   private def keyCode = docType.keyType.t_code_
 

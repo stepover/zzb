@@ -435,8 +435,6 @@ trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
     pack(pack.dataType.asInstanceOf[TStorable[K, KT]].keyType).get.value
   }
 
-  def exist(key: K): Boolean
-
   def nextVerNum(key: K): Int
 
   def put(key: K, pack: T#Pack, replace: Boolean ): T#Pack

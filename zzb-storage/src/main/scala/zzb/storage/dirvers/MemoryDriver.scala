@@ -27,8 +27,6 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     override def compare(o1: T#Pack, o2: T#Pack): Int = o2.version.compareTo(o1.version) //保证降序排列
   })
 
-  def exist(key:K):Boolean = db.valueIterator(key).hasNext
-
   def nextVerNum(key:K) :Int = {
     val vit = db.valueIterator(key)
     if (vit.hasNext) vit.next().version +1 else 1
