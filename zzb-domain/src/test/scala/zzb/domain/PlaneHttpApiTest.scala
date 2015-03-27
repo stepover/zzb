@@ -188,7 +188,7 @@ class PlaneHttpApiTest extends PlaneHttpTestBase {
     val p1 = Passenger(Passenger.name := "Simon")
     val p2 = Passenger(Passenger.name := "Jack")
 
-    import Plane.{Passengers,Cargos,AirStops,DistanceStops,StopTimes}
+    import Plane.{Passengers,Cargos,AirStops,DistanceStops,StopTimes,Vips}
 
     "可以控制特定状态下拒绝数据修改" in {
 
@@ -652,9 +652,74 @@ class PlaneHttpApiTest extends PlaneHttpTestBase {
         res.size mustBe 2
       }
 
-//      manager(Put(s"/api/planes/$pid/alter/$alterSeq/stopTimes/abc", "600")) ~> check {
-//        status mustBe OK
-//      }
+      manager(Put(s"/api/planes/$pid/alter/$alterSeq/stopTimes/abc", "600")) ~> check {
+        status mustBe OK
+      }
+
+      manager(Get(s"/api/planes/$pid/alter/$alterSeq/stopTimes/abc")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+        Integer.parseInt(msg)  mustBe  600
+      }
+
+      manager(Post(s"/api/planes/$pid/alter/$alterSeq")) ~> check {
+        status mustBe OK //提交更改
+      }
+    }
+
+    "Map 类型操作,值类型是 Boolean" in {
+      manager(Post(s"/api/planes/$pid/alter")) ~> check {
+        status mustBe OK
+        val alter = ActionResult.format.read(JsonParser(body.asString))
+        alterSeq = alter.param
+        alterSeq must be > 0
+      }
+
+      val c0 = "abc" -> 120
+
+      val cs = Vips(Map("simon" -> true, "jack" -> false,"vivian" -> true))
+
+      manager(Put(s"/api/planes/$pid/alter/$alterSeq/vips?merge=replace", cs.json)) ~> check {
+        status mustBe OK
+      }
+
+      manager(Get(s"/api/planes/$pid/alter/$alterSeq/vips")) ~> check {
+        status mustBe OK
+        val res = Vips.fromJsValue(JsonParser(body.asString))
+        res.size mustBe 3
+      }
+
+      manager(Get(s"/api/planes/$pid/alter/$alterSeq/vips/@size")) ~> check {
+        status mustBe OK
+        body.asString mustBe "3"
+      }
+
+      manager(Get(s"/api/planes/$pid/alter/$alterSeq/vips/simon")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+        msg mustBe  "true"
+      }
+
+      manager(Delete(s"/api/planes/$pid/alter/$alterSeq/vips/simon")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+      }
+      manager(Get(s"/api/planes/$pid/alter/$alterSeq/vips")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+        val res = Vips.fromJsValue(JsonParser(msg))
+        res.size mustBe 2
+      }
+
+      manager(Put(s"/api/planes/$pid/alter/$alterSeq/vips/abc", "true")) ~> check {
+        status mustBe OK
+      }
+
+      manager(Get(s"/api/planes/$pid/alter/$alterSeq/vips/abc")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+        msg mustBe  "true"
+      }
 
       manager(Post(s"/api/planes/$pid/alter/$alterSeq")) ~> check {
         status mustBe OK //提交更改

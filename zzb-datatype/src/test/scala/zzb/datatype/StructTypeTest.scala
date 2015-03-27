@@ -271,7 +271,8 @@ class StructTypeTest extends WordSpec with MustMatchers {
       import UserInfo._
       val userInfo1 = UserInfo(
         userName := "Simon",
-        userAge := 38
+        userAge := 38,
+        memo := null
       )
       userInfo1(UserName) must equal(Some(UserName("Simon")))
 
@@ -283,6 +284,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
       userInfo3(UserName) must equal(Some(UserName("wolfgang")))
       userInfo3(userAge) must equal(Some(UserAge(7)))
+      serializeTest(userInfo1)
 
     }
 
@@ -338,6 +340,17 @@ class StructTypeTest extends WordSpec with MustMatchers {
       serializeTest(car)
 
     }
+
+    "can be constructed by <~ with null" in {
+      import CarInfo._
+      val vin:String  = null
+      val car = CarInfo() <~ CarVin(vin) <~ CarLicense("京GNR110")
+      car(carLicense) mustBe Some(CarLicense("京GNR110"))
+      car(carVin) mustBe None
+      serializeTest(car)
+
+    }
+
     "can be constructed with Type" in {
       val car = CarInfo(CarLicense("京GNR110"))
 

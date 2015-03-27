@@ -1,6 +1,7 @@
 package zzb.storage
 
 import org.scalatest.FlatSpec
+import zzb.datatype.VersionInfo
 import zzb.storage.data._
 import zzb.storage.dirvers.MemoryDriver
 import scala.concurrent.{Future, ExecutionContext}
@@ -15,7 +16,7 @@ class DocProcessorTest extends FlatSpec {
 
   import HomeInfo._
   //import ExecutionContext.Implicits.global
-  val storage = new Storage(new MemoryDriver[String, ID.type, HomeInfo.type](delay = 100) {
+  val storage = new Storage(new MemoryDriver[String, ID.type, HomeInfo.type](delay = 200) {
     override val docType = HomeInfo
   })
 
@@ -32,14 +33,8 @@ class DocProcessorTest extends FlatSpec {
     val v0 = HomeInfo(userId := "100")
     assert(hip.latest.await === None)
     hip.save(v0)
-    val s1 = System.currentTimeMillis()
     assert(hip.latest.await.get.version === 1)
-    val e1,s2 = System.currentTimeMillis()
-    val t1 = e1 - s1
     assert(hip.version(1).await.get.version === 1)
-    val e2 = System.currentTimeMillis()
-    val t2 = e2 - s2
-    assert(t1 - t2 > 0)  //第二次文档读取得到的是版本缓存中的数据，速度快很多
   }
 
   it should  "can be create with saved data" in {
@@ -89,16 +84,36 @@ class DocProcessorTest extends FlatSpec {
   }
 
   it should "can revert to old version" in {
-    assert(hip.revert(2).await.get.version == 4)
+    val versions = hip.versions.await
+    val latestVer =  versions.head(VersionInfo.ver).get.value
+    assert(versions.size === 1)
+
+    val t1Done = hip.tag("t1").await
+
+    assert(t1Done.version - latestVer === 2) //打一次tag版本号会增加2
+
+    val t2Before = t1Done <~ UserInfo(userName:="jack",userAge := 39)
+
+    val t2Done = hip.save(t2Before,"",true,"t2").await.get
+
+    assert(t2Done.version - t1Done.version === 2) //打一次tag版本号会增加2
+    assert(t2Done.eqtag  === "t2")
+
+    assert(t2Done(UserInfo.userName).get.value === "jack")
+
+    val revt1 = hip.revert("t1").await.get
+    assert(revt1.eqtag === "t1")
+    assert(revt1.tag === "")
+    assert(revt1.version - t2Done.version === 1)
   }
 
   it should "can remove latest version" in {
 
-    assert(hip.latest.await.get.version === 4)
+    assert(hip.latest.await.get.version === 8)
     hip.delete().await
     assert(hip.latest.await === None)
 
-    assert(hip.versions.await.size == 4) //只是做了标记删除
+    assert(hip.versions.await.size === 3) //只是做了标记删除
   }
 }
 

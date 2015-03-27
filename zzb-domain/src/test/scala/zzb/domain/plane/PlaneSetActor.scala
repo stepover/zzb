@@ -4,6 +4,7 @@ package zzb.domain.plane
 import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import zzb.datatype.TString
+import zzb.domain.directive.AuthorizedOperator
 import zzb.domain.{GetFSMData, DomainSetActor}
 import zzb.rest._
 import zzb.rest.util.{IdleReleasable, StatableActor}
@@ -17,7 +18,6 @@ class PlaneSetActor extends DomainSetActor[String, TString, Plane.type] {
   override def receive: Receive = runRoute(route)
 
   def logName: String = "zzb.domain.Plane"
-
 
   val storage: Storage[String, TString, Plane.type] =
     memoryStorage[String, TString, Plane.type](Plane)

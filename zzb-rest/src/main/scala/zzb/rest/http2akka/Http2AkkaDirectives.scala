@@ -83,6 +83,8 @@ private[http2akka] class HttpResponder[T](httpCtx: RequestContext)(implicit to: 
 
   override def requestId = httpCtx.request.method.value + " " + httpCtx.request.uri.toString()
 
+  override def requestHeaders = httpCtx.request.headers
+
   private def marshallerAndResponseToHttp(v: T, resp: RestResponse) = {
     val httpReq = httpCtx.request
     val ctx = new ToResponseMarshallingContext {

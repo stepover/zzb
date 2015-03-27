@@ -99,7 +99,7 @@ class PlaneActor(val domId: String,
     case Event("OwnerChanged", doc) =>
       val owner = doc.owner
       if (!owner.startsWith("hello ")) {
-        doSave(doc <~ Plane.owner()("hello " + owner), sysUser, null)
+        doSave(doc <~ Plane.owner()("hello " + owner), sysUser,null)
       }
       stay()
 

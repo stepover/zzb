@@ -60,13 +60,13 @@ StructValue(values: Map[String, ValuePack[Any]],
   def fields = values.values.toList
 
   def plus(value: ValuePack[Any]) = {
-    if (fieldMap.contains(value.code))
+    if (fieldMap.contains(value.code) && value.value != null)
       StructValue(values + (value.code -> value), fieldMap, requiredField)
     else this
   }
 
   def plusList(vs: Seq[ValuePack[Any]]) =
-    StructValue(values ++ vs.filter(v => fieldMap.contains(v.code)).map(fv => fv.code -> fv), fieldMap, requiredField)
+    StructValue(values ++ vs.filter(v => fieldMap.contains(v.code) && v.value!= null).map(fv => fv.code -> fv), fieldMap, requiredField)
 
 
   def sub(dt: DataType[Any]) = {
@@ -110,7 +110,7 @@ StructValue(values: Map[String, ValuePack[Any]],
       v: Option[ValuePack[Any]] = (lv, rv) match {
         case (Some(l), None) => lv
         case (None, Some(r)) => rv
-        case (Some(l), Some(r)) if l != r || requiredField.contains(dt) => Some(l)
+        case (Some(l), Some(r)) if l != r || requiredField.contains(dt) =>
           (l, r) match {
             case (ll: TStruct#Pack, rr: TStruct#Pack) => Some(ll.dataType(ll.value.xor(rr.value)))
             case _ => Some(l)
@@ -132,7 +132,7 @@ StructValue(values: Map[String, ValuePack[Any]],
       false
   }
 
-  override def toString = values.toString()
+  override def toString = values.filter(_._2.value != null).toString()
 }
 
 
@@ -274,7 +274,7 @@ trait TStruct extends DataType[StructValue] {
         case p: Pack => apply(p.value)
         case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)) yield (v.code, v)).toMap)
       }
-    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)) yield (v.code, v)).toMap)
+    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)  && v.value !=null  ) yield (v.code, v)).toMap)
   }
 
   def apply(v: StructValue): Pack = makeValuePackWithDefault(v.values)
@@ -340,7 +340,7 @@ trait TStruct extends DataType[StructValue] {
 
   // <editor-fold defaultstate="collapsed" desc="支持默认值的字段定义 ">
 
-  implicit def funcToByName[T](func: () => T) = func()
+  implicit def funcToByName[T](func: () => T): T = func()
 
   protected final def FieldStruct[T <: TStruct](dt: T, isRequired: Boolean = false, default: => T#Pack = null): () => T = {
     val dtFun = Field(dt, isRequired)
@@ -462,14 +462,14 @@ trait TStruct extends DataType[StructValue] {
 
     def read(json: JsValue): Pack = json match {
       case x: JsObject =>
-        val fieldValues = x.fields.filter(field => fieldMap.contains(field._1)) .map {
-          case (key, jsv)  =>
+        val fieldValues = x.fields.filter(field => fieldMap.contains(field._1)).map {
+          case (key, jsv) =>
             try {
               key -> fieldMap(key).fromJsValue(jsv)
-            }catch {
-              case ex:Throwable => deserializationError(s"$t_code_ : $key parse failed,because '${ex.getMessage}'",ex)
+            } catch {
+              case ex: Throwable => deserializationError(s"$t_code_ : $key parse failed,because '${ex.getMessage}'", ex)
             }
-        }.toMap
+        }
 
         makeValuePack(fieldValues)
 
@@ -591,6 +591,17 @@ trait TStruct extends DataType[StructValue] {
       case Some(v) => v(Ver).get.value
     }
 
+    def tag: String = this(VersionInfo) match {
+      case None => ""
+      case Some(v) => v(Tag).get.value
+    }
+
+    def eqtag: String = this(VersionInfo) match {
+      //case Some(v)  => v(EqTag).get.value
+      case Some(v) if this.revise == 0 => v(EqTag).get.value
+      case _ => ""
+    }
+
     //对指定的某个字段的值执行一个函数，用函数的结果值替换这个字段的值，返回新的结构实例
     def update[VT](dt: TMono[VT], f: VT => VT): Pack = {
 
@@ -601,8 +612,9 @@ trait TStruct extends DataType[StructValue] {
     }
 
     override def toJsValue: JsValue = JsObject {
-      value.values.map {
-        case (key, vp) => key -> vp.toJsValue
+      value.values.filter(_._2.value != null ).map {
+        case (key, vp)  =>
+          key -> vp.toJsValue
       }
     }
 
