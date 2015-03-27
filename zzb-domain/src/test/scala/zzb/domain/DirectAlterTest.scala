@@ -134,7 +134,7 @@ class DirectAlterTest extends PlaneHttpTestBase {
     val p2 = Passenger(Passenger.name := "Jack")
     val p3 = Passenger(Passenger.name := "Mike")
 
-    import Plane.{Passengers,Cargos}
+    import Plane.{Passengers,Cargos,Vips}
 
     "可以控制特定状态下拒绝数据修改" in {
 
@@ -275,6 +275,52 @@ class DirectAlterTest extends PlaneHttpTestBase {
         status mustBe BadRequest
       }
 
+    }
+    "Map 类型操作,值类型是 Boolean" in {
+
+      val cs = Vips(Map("simon" -> true, "jack" -> false,"vivian" -> true))
+
+      manager(Put(s"/api/planes/$pid/alter/vips?merge=replace", cs.json)) ~> check {
+        status mustBe OK
+      }
+
+      manager(Get(s"/api/planes/$pid/latest/vips")) ~> check {
+        status mustBe OK
+        val res = Vips.fromJsValue(JsonParser(body.asString))
+        res.size mustBe 3
+      }
+
+      manager(Get(s"/api/planes/$pid/latest/vips/@size")) ~> check {
+        status mustBe OK
+        body.asString mustBe "3"
+      }
+
+      manager(Get(s"/api/planes/$pid/latest/vips/simon")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+        msg mustBe  "true"
+      }
+
+      manager(Delete(s"/api/planes/$pid/alter/vips/simon")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+      }
+      manager(Get(s"/api/planes/$pid/latest/vips")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+        val res = Vips.fromJsValue(JsonParser(msg))
+        res.size mustBe 2
+      }
+
+      manager(Put(s"/api/planes/$pid/alter/vips/abc", "true")) ~> check {
+        status mustBe OK
+      }
+
+      manager(Get(s"/api/planes/$pid/latest/vips/abc")) ~> check {
+        val msg = body.asString
+        status mustBe OK
+        msg mustBe  "true"
+      }
     }
   }
 }
