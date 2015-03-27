@@ -18,7 +18,7 @@ import com.typesafe.scalalogging.slf4j.Logging
  * mongodb数据驱动，主要用于测试
  * @param delay 读写操作延迟的毫秒数，默认为0，不延迟
  */
-abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] with MongoAccess with DBObjectHelper with Logging{
+abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] with MongoAccess with DBObjectHelper with Logging {
 
   import com.mongodb.casbah.Imports._
 
@@ -26,39 +26,46 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
 
   def dbname: String
 
+
   /**
-   * 获取下一个版本号
+   * 指定主键的下一个版本号，从 1 开始。每次调用返回下一个可用的版本，版本号返回后就认为已被使用。
+   * 永远自增
+   * @param key 数据主键
+   * @return
+   */
+  def nextVerNum(key: K): Int = this.currentVersion(key).fold(1)(f => f(VersionInfo.ver()).get.value + 1)
+
+  /**
+   * 保存数据。每一个主键都有一个多个版本的列表。replace 为 true 时用提供的版本覆盖数据库中的当前最新版本。
+   * 当 replace 为false 时数据库中的当前最新版本被保留，参数中提供的版本作为一个新的版本实例保存。
+   * 保存过程不会修改提供的数据中的版本信息。
    * @param key 主键
-   * @return 下一个版本号
+   * @param pack 文档数据
+   * @param replace 是否覆盖当前数据库版本
+   * @return 返回文档自身（数据库操作完成后的最新版本，也就是参数中提供的版本）
    */
-  private def nextVersionNum(key: K) = this.currentVersion(key).fold(1)(f=>f(VersionInfo.ver()).get.value + 1)
-
-  /**
-   * 保存文档新版本。
-   * @param doc 文档数据
-   * @param operatorName 操作者名称
-   * @param isOwnerOperate 是否文档所有人
-   * @return 更新了版本好的新文档
-   */
-  def save(doc: T#Pack, operatorName: String, isOwnerOperate: Boolean): T#Pack = {
-    val key = getKey(doc)
-    import VersionInfo._
-
-    val newVerNum = nextVersionNum(key)
-    val newVer = VersionInfo(
-      ver := newVerNum,
-      time := DateTime.now,
-      opt := operatorName, isOwn := isOwnerOperate)
-
-    val newDoc = doc <~ newVer
-    logger.debug(s"save doc #${key.toString},newVer: #${newVerNum.toString}")
-    if (delay > 0) Thread.sleep(delay)
-
-    doSave(newVerNum, newDoc)
-    saveHistory(newDoc)
-    newDoc
+  def put(key: K, pack: T#Pack, replace: Boolean = true): T#Pack = {
+    val jsonString = pack.toJsValue.toString()
+    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
+    val uuid_key = MongoDBObject(keyCode -> key.toString)
+    val cnt = collection(_.getCount(uuid_key))
+    if (cnt == 0) collection(_.insert(dbObject))
+    else collection(_.update(uuid_key, dbObject))
+    if (!replace) saveHistory(pack)
+    pack
   }
 
+  /**
+   * 根据指定key装载指定标记的文档。
+   * 文档中 verInfo->tag 字段保存着文档的 tag 标签，装载对应标签的文档。
+   * @param key 主键
+   * @param tag 标签
+   * @return 文档
+   */
+  def load(key: K, tag: String): Option[T#Pack] = {
+    val uuid_key = MongoDBObject(keyCode -> key.toString, versionTag -> tag)
+    collection(c => convertDBObject(c.findOne(uuid_key)))
+  }
 
   /**
    * 装载指定主键，指定版本的文档
@@ -76,9 +83,45 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     }
   }
 
+  /**
+   * 获取下一个版本号
+   * @param key 主键
+   * @return 下一个版本号
+   */
+  private def nextVersionNum(key: K) = this.currentVersion(key).fold(1)(f => f(VersionInfo.ver()).get.value + 1)
+
+  //  /**
+  //   * 保存文档新版本
+  //   * @param doc 文档数据
+  //   * @param operatorName 操作者名称
+  //   * @param isOwnerOperate 是否文档所有人
+  //   * @return 更新了版本好的新文档，如果指定了tag,返回 tag 为空的最新版本
+  //   */
+  //  def save(doc: T#Pack, operatorName: String, isOwnerOperate: Boolean,newTag:String = ""): T#Pack = {
+  //    val key = getKey(doc)
+  //    import VersionInfo._
+  //
+  //    val newVerNum = nextVersionNum(key)
+  //    val newVer = VersionInfo(
+  //      ver := newVerNum,
+  //      time := DateTime.now,
+  //      opt := operatorName, isOwn := isOwnerOperate)
+  //
+  //    val newDoc = doc <~ newVer
+  //    logger.debug(s"save doc #${key.toString},newVer: #${newVerNum.toString}")
+  //    if (delay > 0) Thread.sleep(delay)
+  //
+  //    doSave(newVerNum, newDoc)
+  //    saveHistory(newDoc)
+  //    newDoc
+  //  }
+
+
   private def keyCode = docType.keyType.t_code_
 
   private def versionCode = VersionInfo.t_code_ + "." + Ver.t_code_
+
+  private def versionTag = VersionInfo.t_code_ + "." + Tag.t_code_
 
   private def convertDBObject(dbObject: Option[DBObject]): Option[T#Pack] = {
     dbObject match {
@@ -114,30 +157,31 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     }
   }
 
-  /**
-   * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
-   * @param key 主键
-   * @param oldVer 旧版本号
-   * @return 新文档，如果没有找到指定版本的文档则返回None
-   */
-  def revert(key: K, oldVer: Int): Option[T#Pack] = {
-    val currentVer = currentVersion(key) match {
-      case None => -1
-      case Some(cVer) => cVer(VersionInfo.ver()).get.value
-    }
-
-    currentVer match {
-      case -1 => None
-      case `oldVer` =>
-        load(key, oldVer)
-      case _ =>
-        revertHistory(key, oldVer)
-    }
-  }
-
-  private def revertHistory(key: K, oldVer: Int): Option[T#Pack] = {
-    load(key, oldVer).map(v => save(v, "", isOwnerOperate = false))
-  }
+  //  /**
+  //   * 恢复文档的指定版本，复制指定的旧版本新建一个新版本，版本号增加
+  //   * @param key 主键
+  //   * @param targetVer 旧版本号
+  //   * @return 新文档，如果没有找到指定版本的文档则返回None
+  //   */
+  //  def revert(key: K, targetVer: Int): Option[T#Pack] = {
+  //    val currentVer = currentVersion(key) match {
+  //      case None => -1
+  //      case Some(cVer) => cVer(VersionInfo.ver()).get.value
+  //    }
+  //
+  //    currentVer match {
+  //      case -1 => None
+  //      case `targetVer` =>
+  //        load(key, targetVer)
+  //      case _ =>
+  //        revertHistory(key, targetVer)
+  //    }
+  //  }
+  //
+  //
+  //  private def revertHistory(key: K, oldVer: Int): Option[T#Pack] = {
+  //    load(key, oldVer).map(v => save(v, "", isOwnerOperate = false))
+  //  }
 
   /**
    * 获取最近的几个版本信息，最新的在前面
@@ -149,7 +193,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     //val uuid_key = MongoDBObject(keyCode -> key.toString, VersionInfo.t_code_ + "." + Del.t_code_ -> false)
     val uuid_key = MongoDBObject(keyCode -> key.toString)
     val data_key = MongoDBObject(VersionInfo.t_code_ -> "1")
-//    val data_order = MongoDBObject(versionCode -> "desc")
+    //    val data_order = MongoDBObject(versionCode -> "desc")
     val version_docs = historyCollection(_.find(uuid_key, data_key))
 
     import spray.json._
@@ -183,9 +227,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   def find(params: (StructPath, Any)*): List[T#Pack] = {
     collection { col =>
       val p = params.foldLeft(MongoDBObject()) { (result, param) =>
-        result ++ (param._1.relativeStr.drop(1).replace("/",".") -> param._2)
+        result ++ (param._1.relativeStr.drop(1).replace("/", ".") -> param._2)
       }
-      col.find(p).map{v=>
+      col.find(p).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
         docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
@@ -193,13 +237,13 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     }
   }
 
-  override def query(params: (StructPath, Any,String)*): List[T#Pack]={
+  override def query(params: (StructPath, Any, String)*): List[T#Pack] = {
 
-    val paramsNew=  params.map{
-        v=>
-          makeFilterByConditionName(v._1,v._2,v._3)
-      }
-    val filter= makeAndFilter(paramsNew.flatten.toList)
+    val paramsNew = params.map {
+      v =>
+        makeFilterByConditionName(v._1, v._2, v._3)
+    }
+    val filter = makeAndFilter(paramsNew.flatten.toList)
     query(filter)
   }
 
@@ -208,9 +252,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @param dbObjcet 查询的条件
    * @return
    */
-  override def query(dbObjcet: Imports.DBObject):List[T#Pack]={
+  override def query(dbObjcet: Imports.DBObject): List[T#Pack] = {
     collection { col =>
-      col.find(dbObjcet).map{v=>
+      col.find(dbObjcet).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
         docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
@@ -223,7 +267,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @param dbObjcet 查询的条件
    * @return
    */
-  override def count(dbObjcet: Imports.DBObject):Int={
+  override def count(dbObjcet: Imports.DBObject): Int = {
     collection { col =>
 
       col.count(dbObjcet)
@@ -237,18 +281,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @param skip 从第几条开始
    * @return
    */
-  override def queryWithLimit(dbObjcet: Imports.DBObject,limit:Int=10,skip:Int=0):List[T#Pack]={
+  override def queryWithLimit(dbObjcet: Imports.DBObject, limit: Int = 10, skip: Int = 0): List[T#Pack] = {
     collection { col =>
-      col.find(dbObjcet).limit(limit).skip(skip).map{v=>
-        v.removeField("_id")
-        v.removeField(del_flag)
-        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
-      }.toList
-    }
-  }
-  override def queryWithLimitSort(dbObjcet: Imports.DBObject,limit:Int=10,skip:Int=0 ,sort:Imports.DBObject):List[T#Pack]={
-    collection { col =>
-      col.find(dbObjcet).sort(sort).limit(limit).skip(skip).map{v=>
+      col.find(dbObjcet).limit(limit).skip(skip).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
         docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
@@ -256,16 +291,25 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     }
   }
 
+  override def queryWithLimitSort(dbObjcet: Imports.DBObject, limit: Int = 10, skip: Int = 0, sort: Imports.DBObject): List[T#Pack] = {
+    collection { col =>
+      col.find(dbObjcet).sort(sort).limit(limit).skip(skip).map { v =>
+        v.removeField("_id")
+        v.removeField(del_flag)
+        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+      }.toList
+    }
+  }
 
 
   private def historyCollection[M](f: MongoCollection => M) = {
-    db(dbname){d=>
+    db(dbname) { d =>
       f(d(docType.t_code_ + "_history"))
     }
   }
 
   private def collection[M](f: MongoCollection => M): M = {
-    db(dbname){d=>
+    db(dbname) { d =>
       f(d(docType.t_code_))
     }
   }
