@@ -269,10 +269,12 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
     ":= style value set " in {
       import UserInfo._
+
+      val nullString :String = null
       val userInfo1 = UserInfo(
-        userName := "Simon",
-        userAge := 38,
-        memo := null
+        userName := Some("Simon"),
+        userAge := Some(38),
+        memo := nullString
       )
       userInfo1(UserName) must equal(Some(UserName("Simon")))
 
@@ -280,7 +282,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
       //
       //      userInfo2(blood) must equal(Some(BloodType(1)))
 
-      val userInfo3 = userInfo1.lll(userName := "wolfgang", userAge := 7)
+      val userInfo3 = userInfo1.make(userName := "wolfgang", userAge := 7)
 
       userInfo3(UserName) must equal(Some(UserName("wolfgang")))
       userInfo3(userAge) must equal(Some(UserAge(7)))

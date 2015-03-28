@@ -71,7 +71,7 @@ class EnsureTest extends WordSpec with MustMatchers {
       val keyFilter = (itemDef: ItemDef) => !excludeItem.contains(itemDef)
       val filter = (kv: (ItemDef, Item.Pack)) => !excludeItem.contains(kv._1)
 
-      val suite0 = BizSuite(filter, charge := 1000.1, discountRate := 0.9)
+      val suite0 = BizSuite.makeWithFilter(filter, charge := 1000.1, discountRate := 0.9)
       val items = suite0.Items
 
       val availableCount = items.availableKeys.size
@@ -129,14 +129,14 @@ class EnsureTest extends WordSpec with MustMatchers {
         messages1.size must equal(3)
 
         val ddd: BizSuite.Item.Pack = DriverIns.makeItem(1)
-        val sss = ddd.lll(Item.charge := 99)
+        val sss = ddd.make(Item.charge := 99)
 
-        val suite2 = suite1 ~ DriverIns.makeItem(1).lll(Item.charge := 99) //保费小于100，仍然会报错
+        val suite2 = suite1 ~ DriverIns.makeItem(1).make(Item.charge := 99) //保费小于100，仍然会报错
 
         val messages2 = suite2.doValidate
         messages2.size must equal(3)
 
-        val suite3 = suite2 ~ DriverIns.makeItem(1).lll(Item.charge := 100) //错误已修正
+        val suite3 = suite2 ~ DriverIns.makeItem(1).make(Item.charge := 100) //错误已修正
 
         val messages3 = suite3.doValidate
         messages3.size must equal(2)
