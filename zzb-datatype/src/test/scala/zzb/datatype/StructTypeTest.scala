@@ -280,7 +280,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
       //
       //      userInfo2(blood) must equal(Some(BloodType(1)))
 
-      val userInfo3 = userInfo1(userName := "wolfgang", userAge := 7)
+      val userInfo3 = userInfo1.lll(userName := "wolfgang", userAge := 7)
 
       userInfo3(UserName) must equal(Some(UserName("wolfgang")))
       userInfo3(userAge) must equal(Some(UserAge(7)))

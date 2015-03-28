@@ -80,15 +80,15 @@ package object datatype {
   implicit class TListFieldTrans[T<:TList[_]](val field: () => T) {
     def :=[U](value: List[U])(implicit um:ClassTag[U]) = {
       if(field().lm != um) throw new IllegalArgumentException
-      field().applyListValue(value)
+      Some(field().applyListValue(value) )
     }
   }
 
   //TProperty 字段赋值的 “:= 语法”
   implicit class TPropertyFieldTrans[T<:TProperty](val field: () => T ) {
-    def :=(value: Map[String,Any]) = {
+    def :=(value: Map[String,Any]) = Some(
       field().applyMapValue(value.map(kv => (kv._1,TVariant(kv._2.toString))))
-    }
+    )
   }
 
 
@@ -98,35 +98,35 @@ package object datatype {
       val (lkm,lvm) = (field().km,field().vm)
       if(lkm != km || lvm != vm)
         throw new IllegalArgumentException
-      field().applyMapValue(value)
+      Some(field().applyMapValue(value))
     }
   }
 
   // 字段赋值的 “:= 语法”
   implicit class TStructFieldTrans[T<: TStruct](val field: () => T) {
-    def :=(value: T#Pack) = field().apply(value)
+    def :=(value: T#Pack) = Some(field().apply(value))
   }
 
   // 字段赋值的 “:= 语法”
   implicit class TStringFieldTrans(val field: () => TString) {
-    def :=(value: String) = field().apply(value)
+    def :=(value: String) = Some(field().apply(value))
   }
 
   // 字段赋值的 “:= 语法”
   implicit class TIntFieldTrans(val field: () => TInt) {
-    def :=(value: Int) = field().apply(value)
+    def :=(value: Int) = Some(field().apply(value)  )
   }
 
   implicit class TLongFieldTrans(val field: () => TLong) {
-    def :=(value: Long) = field().apply(value)
+    def :=(value: Long) = Some(field().apply(value))
   }
 
   implicit class TByteFieldTrans(val field: () => TByte) {
-    def :=(value: Byte) = field().apply(value)
+    def :=(value: Byte) = Some(field().apply(value))
   }
 
   implicit class TShortFieldTrans(val field: () => TShort) {
-    def :=(value: Short) = field().apply(value)
+    def :=(value: Short) = Some(field().apply(value))
   }
 
   implicit class TFloatFieldTrans(val field: () => TFloat) {
@@ -134,21 +134,21 @@ package object datatype {
   }
 
   implicit class TDoubleFieldTrans(val field: () => TDouble) {
-    def :=(value: Double) = field().apply(value)
+    def :=(value: Double) = Some(field().apply(value))
   }
 
   import com.github.nscala_time.time.Imports._
 
   implicit class TDateTimeFieldTrans(val field: () => TDateTime) {
-    def :=(value: DateTime) = field().apply(value)
+    def :=(value: DateTime) = Some(field().apply(value))
   }
 
   implicit class TBigDecimalFieldTrans(val field: () => TBigDecimal) {
-    def :=(value: BigDecimal) = field().apply(value)
+    def :=(value: BigDecimal) = Some(field().apply(value) )
   }
 
   implicit class TBooleanFieldTrans(val field: () => TBoolean) {
-    def :=(value: Boolean) = field().apply(value)
+    def :=(value: Boolean) = Some(field().apply(value) )
   }
 
   private val datePatterns ="YYYY-MM-dd HH:mm:ss" ::

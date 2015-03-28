@@ -66,7 +66,7 @@ StructValue(values: Map[String, ValuePack[Any]],
   }
 
   def plusList(vs: Seq[ValuePack[Any]]) =
-    StructValue(values ++ vs.filter(v => fieldMap.contains(v.code) && v.value!= null).map(fv => fv.code -> fv), fieldMap, requiredField)
+    StructValue(values ++ vs.filter(v => fieldMap.contains(v.code) && v.value != null).map(fv => fv.code -> fv), fieldMap, requiredField)
 
 
   def sub(dt: DataType[Any]) = {
@@ -86,12 +86,12 @@ StructValue(values: Map[String, ValuePack[Any]],
   }
 
   def ->>(other: StructValue) = {
-    val merged = values.map{
-      case(k,v) =>
+    val merged = values.map {
+      case (k, v) =>
         val nv = fieldMap(k) match {
-          case st:TStruct if other.hasField(k) =>
+          case st: TStruct if other.hasField(k) =>
             v ->> other.values(k)
-          case mt:TMap[_,_] if other.hasField(k) =>
+          case mt: TMap[_, _] if other.hasField(k) =>
             v ->> other.values(k)
           case _ => v
         }
@@ -199,30 +199,31 @@ trait TStruct extends DataType[StructValue] {
           case Some(innerPath) => Some((() => this) :: innerPath)
           case None => None
         }
-      case _ => getSubPathByCode(codeList) match { //路径开头不包含了自己
+      case _ => getSubPathByCode(codeList) match {
+        //路径开头不包含了自己
         case Some(innerPath) => Some((() => this) :: innerPath)
         case None => None
       }
     }
   }
 
-//  private def getSubPathByCode(codePath: String): Option[StructPath] = {
-//    val vp = if (codePath.startsWith("/")) codePath.substring(1) else codePath
-//    if (vp.isEmpty) None
-//    else
-//      getSubPathByCode(vp.split("/").toList)
-//  }
+  //  private def getSubPathByCode(codePath: String): Option[StructPath] = {
+  //    val vp = if (codePath.startsWith("/")) codePath.substring(1) else codePath
+  //    if (vp.isEmpty) None
+  //    else
+  //      getSubPathByCode(vp.split("/").toList)
+  //  }
 
   //传入参数是依次级联的 code , 返回 NestedStructFields 的 Option
   private def getSubPathByCode(codeList: List[String]): Option[StructPath] = {
 
-    implicit class StringIsInt(str:String) {
+    implicit class StringIsInt(str: String) {
       def isInt = {
         try {
           Integer.parseInt(str)
           true
-        }catch {
-          case e:Throwable => false
+        } catch {
+          case e: Throwable => false
         }
 
       }
@@ -238,16 +239,17 @@ trait TStruct extends DataType[StructValue] {
       case code :: tail =>
         if (fieldFuncMap.contains(code)) {
           val field = fieldFuncMap(code)
-          field() match {  //三种情况(正常字段，TMap类型的一个Key,TList类型的一个序号）
+          field() match {
+            //三种情况(正常字段，TMap类型的一个Key,TList类型的一个序号）
             case dt: TStruct =>
               field :: dt.getSubPathByCode(tail)
-            case dt : TList[_] if tail.size == 1 && tail.head.isInt =>
-              Some(ListPath(List(field),tail.head.toInt))
+            case dt: TList[_] if tail.size == 1 && tail.head.isInt =>
+              Some(ListPath(List(field), tail.head.toInt))
             case dt: TList[_] =>
-                throw new StructPathException(s"'${codeList.mkString("/")} is not a valid ListPath of data type '${dt.t_code_}'")
-            case dt: TMap[_,_] if tail.size == 1 =>
-              Some(MapPath(List(field),key = tail.head))
-            case dt:TMap[_,_] =>
+              throw new StructPathException(s"'${codeList.mkString("/")} is not a valid ListPath of data type '${dt.t_code_}'")
+            case dt: TMap[_, _] if tail.size == 1 =>
+              Some(MapPath(List(field), key = tail.head))
+            case dt: TMap[_, _] =>
               throw new StructPathException(s"'${codeList.mkString("/")} is not a valid MapPath of data type '${dt.t_code_}'")
             case _ => None
           }
@@ -266,16 +268,47 @@ trait TStruct extends DataType[StructValue] {
   def hasField(dt: DataType[Any]) = fieldMap.contains(dt.t_code_)
 
 
+  def apply(values: AnyRef*): Pack = {
+    if(values.size == 1){
+      values.apply(0) match {
+        case pack: Pack => apply(pack.value)
+        case vp :ValuePack[_] if hasField(vp.code) && vp.value != null =>
+          makeValuePackWithDefault(Map(vp.code -> vp))
+        case _ => throw new IllegalArgumentException("Invalid Param")
+      }
+    }else {
+      val transValues = values.filter {
+        case vp: ValuePack[_] if hasField(vp.code) && vp.value != null => true
+        case Some(vp: ValuePack[_]) if hasField(vp.code) && vp.value != null => true
+        case _ => false
+      }.map {
+        case vp: ValuePack[_] => vp.code -> vp
+        case Some(vp: ValuePack[_]) => vp.code -> vp
+      }.toMap
+      makeValuePackWithDefault(transValues)
+    }
+  }
+
+  //    values.length match {
+  //    case 1 =>
+  //      values.apply(0) match {
+  //        case p: Pack => apply(p.value)
+  //        case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)) yield (v.code, v)).toMap)
+  //      }
+  //    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)  && v.value !=null  ) yield (v.code, v)).toMap)
+  //  }
+
+
   // <editor-fold defaultstate="collapsed" desc="构造 Struct 实例 ">
 
-  def apply(values: ValuePack[Any]*): Pack = values.length match {
-    case 1 =>
-      values.apply(0) match {
-        case p: Pack => apply(p.value)
-        case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)) yield (v.code, v)).toMap)
-      }
-    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)  && v.value !=null  ) yield (v.code, v)).toMap)
-  }
+//  def apply(values: Option[ValuePack[Any]]*): Pack = values.length match {
+//    case 1 =>
+//      values.apply(0) match {
+//        case Some(p: Pack) => apply(p.value)
+//        case _ => makeValuePackWithDefault((for (v <- values if v.isDefined && hasField(v.get.code) && v.get.value != null) yield (v.get.code, v.get)).toMap)
+//      }
+//    case _ => makeValuePackWithDefault((for (v <- values if v.isDefined && hasField(v.get.code) && v.get.value != null) yield (v.get.code, v.get)).toMap)
+//  }
 
   def apply(v: StructValue): Pack = makeValuePackWithDefault(v.values)
 
@@ -315,9 +348,9 @@ trait TStruct extends DataType[StructValue] {
 
 
   //此类型和下面的隐式转换构成 字段赋值的 “:= 语法”
-  implicit class FieldTrans(val field: () => this.type) {
-    def :=(value: StructValue) = field().apply(value)
-  }
+//  implicit class FieldTrans(val field: () => this.type) {
+//    def :=(value: StructValue) = Some(field().apply(value))
+//  }
 
   //todo:
   protected def itemToString[VT](i: ValuePack[VT]): String = i.value.toString
@@ -358,8 +391,8 @@ trait TStruct extends DataType[StructValue] {
     dtFun
   }
 
-  protected final def FieldList[T <: TList[_]](dt: T) : () => T = {
-    FieldList(dt,isRequired = true,dt(Nil))
+  protected final def FieldList[T <: TList[_]](dt: T): () => T = {
+    FieldList(dt, isRequired = true, dt(Nil))
   }
 
   protected final def FieldMap[T <: TMap[_, _]](dt: T, isRequired: Boolean = false, default: => T#Pack = null): () => T = {
@@ -371,7 +404,7 @@ trait TStruct extends DataType[StructValue] {
   }
 
   protected final def FieldMap[T <: TMap[_, _]](dt: T): () => T = {
-    FieldMap(dt,isRequired = true,default = dt(Map()))
+    FieldMap(dt, isRequired = true, default = dt(Map()))
   }
 
 
@@ -496,7 +529,7 @@ trait TStruct extends DataType[StructValue] {
   case class Pack(value: StructValue, revise: Int)
     extends {
       val dataType = TStruct.this
-    } with StructPack[StructValue]  with Serializable{
+    } with StructPack[StructValue] with Serializable {
 
     //----------------------------序列化 begin
     private def writeObject(os: ObjectOutputStream): Unit = writeObjectDo(os)
@@ -508,6 +541,18 @@ trait TStruct extends DataType[StructValue] {
     //----------------------------序列化 end
 
     def apply(packs: ValuePack[Any]*) = plusList(packs)
+
+//    def lll(values: AnyRef*) = {
+//      val packs = values.filter {
+//        case vp: ValuePack[_] if  vp.value != null => true
+//        case Some(vp: ValuePack[_]) if vp.value != null => true
+//        case _ => false
+//      }.map {
+//        case vp: ValuePack[_] =>  vp
+//        case Some(vp: ValuePack[_]) =>  vp
+//      }
+//      plusList(packs)
+//  }
 
     def isOnlyRequireFields: Boolean = value.isOnlyRequireFields
 
@@ -539,7 +584,7 @@ trait TStruct extends DataType[StructValue] {
     }
 
     //根据路径的字符串取出对应的值
-    def valueByPath(pathCode:String) : Option[Any] = {
+    def valueByPath(pathCode: String): Option[Any] = {
       dataType.getPathByCode(pathCode) match {
         case Some(path) =>
           path.getDomainData(this)
@@ -612,8 +657,8 @@ trait TStruct extends DataType[StructValue] {
     }
 
     override def toJsValue: JsValue = JsObject {
-      value.values.filter(_._2.value != null ).map {
-        case (key, vp)  =>
+      value.values.filter(_._2.value != null).map {
+        case (key, vp) =>
           key -> vp.toJsValue
       }
     }
