@@ -269,16 +269,16 @@ trait TStruct extends DataType[StructValue] {
 
 
   def apply(values: AnyRef*): Pack = {
-    if(values.size == 1){
+    if (values.size == 1) {
       values.apply(0) match {
         case pack: Pack => apply(pack.value)
-        case vp :ValuePack[_] if hasField(vp.code) && vp.value != null =>
+        case vp: ValuePack[_] if hasField(vp.code) && vp.value != null =>
           makeValuePackWithDefault(Map(vp.code -> vp))
-        case Some(vp :ValuePack[_]) if hasField(vp.code) && vp.value != null =>
+        case Some(vp: ValuePack[_]) if hasField(vp.code) && vp.value != null =>
           makeValuePackWithDefault(Map(vp.code -> vp))
         case _ => throw new IllegalArgumentException("Invalid Param")
       }
-    }else {
+    } else {
       val transValues = values.filter {
         case vp: ValuePack[_] if hasField(vp.code) && vp.value != null => true
         case Some(vp: ValuePack[_]) if hasField(vp.code) && vp.value != null => true
@@ -303,14 +303,14 @@ trait TStruct extends DataType[StructValue] {
 
   // <editor-fold defaultstate="collapsed" desc="构造 Struct 实例 ">
 
-//  def apply(values: Option[ValuePack[Any]]*): Pack = values.length match {
-//    case 1 =>
-//      values.apply(0) match {
-//        case Some(p: Pack) => apply(p.value)
-//        case _ => makeValuePackWithDefault((for (v <- values if v.isDefined && hasField(v.get.code) && v.get.value != null) yield (v.get.code, v.get)).toMap)
-//      }
-//    case _ => makeValuePackWithDefault((for (v <- values if v.isDefined && hasField(v.get.code) && v.get.value != null) yield (v.get.code, v.get)).toMap)
-//  }
+  //  def apply(values: Option[ValuePack[Any]]*): Pack = values.length match {
+  //    case 1 =>
+  //      values.apply(0) match {
+  //        case Some(p: Pack) => apply(p.value)
+  //        case _ => makeValuePackWithDefault((for (v <- values if v.isDefined && hasField(v.get.code) && v.get.value != null) yield (v.get.code, v.get)).toMap)
+  //      }
+  //    case _ => makeValuePackWithDefault((for (v <- values if v.isDefined && hasField(v.get.code) && v.get.value != null) yield (v.get.code, v.get)).toMap)
+  //  }
 
   def apply(v: StructValue): Pack = makeValuePackWithDefault(v.values)
 
@@ -350,9 +350,14 @@ trait TStruct extends DataType[StructValue] {
 
 
   //此类型和下面的隐式转换构成 字段赋值的 “:= 语法”
-//  implicit class FieldTrans(val field: () => this.type) {
-//    def :=(value: StructValue) = Some(field().apply(value))
-//  }
+  implicit class FieldTrans(val field: () => this.type) {
+    def :=(value: StructValue) = Some(field().apply(value))
+
+    def :=(value: Option[StructValue]) = value match {
+      case Some(v) => Some(field().apply(value))
+      case None => None
+    }
+  }
 
   //todo:
   protected def itemToString[VT](i: ValuePack[VT]): String = i.value.toString
@@ -544,17 +549,17 @@ trait TStruct extends DataType[StructValue] {
 
     //def apply(packs: ValuePack[Any]*) = plusList(packs)
 
-    def lll(values: AnyRef*) = {
+    def make(values: AnyRef*) = {
       val packs = values.filter {
-        case vp: ValuePack[_] if  vp.value != null => true
+        case vp: ValuePack[_] if vp.value != null => true
         case Some(vp: ValuePack[_]) if vp.value != null => true
         case _ => false
       }.map {
-        case vp: ValuePack[_] =>  vp
-        case Some(vp: ValuePack[_]) =>  vp
+        case vp: ValuePack[_] => vp
+        case Some(vp: ValuePack[_]) => vp
       }
       plusList(packs)
-  }
+    }
 
     def isOnlyRequireFields: Boolean = value.isOnlyRequireFields
 
