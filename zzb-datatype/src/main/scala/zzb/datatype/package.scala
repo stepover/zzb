@@ -98,6 +98,7 @@ package object datatype {
       val (lkm,lvm) = (field().km,field().vm)
       if(lkm != km || lvm != vm)
         throw new IllegalArgumentException
+      //val ddd: TMap.this.type#Pack = field().applyMapValue(value)
       Some(field().applyMapValue(value))
     }
   }

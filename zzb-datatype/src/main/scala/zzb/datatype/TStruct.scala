@@ -274,6 +274,8 @@ trait TStruct extends DataType[StructValue] {
         case pack: Pack => apply(pack.value)
         case vp :ValuePack[_] if hasField(vp.code) && vp.value != null =>
           makeValuePackWithDefault(Map(vp.code -> vp))
+        case Some(vp :ValuePack[_]) if hasField(vp.code) && vp.value != null =>
+          makeValuePackWithDefault(Map(vp.code -> vp))
         case _ => throw new IllegalArgumentException("Invalid Param")
       }
     }else {
