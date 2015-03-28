@@ -540,19 +540,19 @@ trait TStruct extends DataType[StructValue] {
 
     //----------------------------序列化 end
 
-    def apply(packs: ValuePack[Any]*) = plusList(packs)
+    //def apply(packs: ValuePack[Any]*) = plusList(packs)
 
-//    def lll(values: AnyRef*) = {
-//      val packs = values.filter {
-//        case vp: ValuePack[_] if  vp.value != null => true
-//        case Some(vp: ValuePack[_]) if vp.value != null => true
-//        case _ => false
-//      }.map {
-//        case vp: ValuePack[_] =>  vp
-//        case Some(vp: ValuePack[_]) =>  vp
-//      }
-//      plusList(packs)
-//  }
+    def lll(values: AnyRef*) = {
+      val packs = values.filter {
+        case vp: ValuePack[_] if  vp.value != null => true
+        case Some(vp: ValuePack[_]) if vp.value != null => true
+        case _ => false
+      }.map {
+        case vp: ValuePack[_] =>  vp
+        case Some(vp: ValuePack[_]) =>  vp
+      }
+      plusList(packs)
+  }
 
     def isOnlyRequireFields: Boolean = value.isOnlyRequireFields
 

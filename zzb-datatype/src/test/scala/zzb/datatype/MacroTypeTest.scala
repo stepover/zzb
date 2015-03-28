@@ -85,7 +85,7 @@ class MacroTypeTest extends WordSpec with MustMatchers {
 
       userInfo(UserInfo.userName()).get.value  must equal("Simon")
 
-      userInfo("user.name") must equal(Some(UserInfo.userName()("Simon")))
+      userInfo.apply("user.name") must equal(Some(UserInfo.userName()("Simon")))
 
 //      userInfo(NoThis) must be(None)
     }
