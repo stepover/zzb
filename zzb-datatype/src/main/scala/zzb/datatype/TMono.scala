@@ -58,7 +58,12 @@ trait TMono[VT] extends DataType[VT] {
 
   //此类型和下面的隐式转换构成 字段赋值的 “:= 语法”
   implicit class FieldFuncWrap(val field: () => this.type) {
-    def :=(value: VT) = field().apply(value)
+    def :=(value: VT) = Some(field().apply(value))
+
+    def :=(value: Option[VT]) = value match {
+      case Some(v:VT) => Some(field().apply(v.value))
+      case _ => None
+    }
   }
 
   def fromJsValue(x: JsValue): Pack = Pack(valueFormat.read(x))

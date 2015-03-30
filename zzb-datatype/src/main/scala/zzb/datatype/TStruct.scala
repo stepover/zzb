@@ -616,11 +616,13 @@ trait TStruct extends DataType[StructValue] {
 
     def -(vts: Seq[DataType[Any]]): Pack = Pack(value subList vts, revise + 1)
 
-    def <~(fieldBlock: => ValuePack[Any]): Pack = copy(fieldBlock)
+    def <~(fieldBlock: => ValuePack[_]): Pack = alter(fieldBlock)
 
-    def <~~(fieldsBlock: => Seq[_]): Pack = copy(fieldsBlock)
+    //def <~(fieldsBlock: => Seq[_]): Pack = copy(fieldsBlock)
 
-    def copy(fieldsBlock: => AnyRef) = try {
+    def <~~(fieldsBlock: => Seq[_]): Pack = alter(fieldsBlock)
+
+    def alter(fieldsBlock: => AnyRef) = try {
       fieldsBlock match {
         case vp: ValuePack[_] =>
           Pack(value plus vp, revise + 1)
@@ -646,6 +648,18 @@ trait TStruct extends DataType[StructValue] {
       Pack(value xor other.value, revise + 1)
     }
 
+    def to[That<:TStruct](that:That):That#Pack = {
+      val useValues = value.values.filter{
+        case (key,vp) if that.hasField(key) && dataType.hasField(key)  &&
+          (that.fieldMap(key).eq(dataType.fieldMap(key)) || that.fieldMap(key).vtm == dataType.fieldMap(key).vtm) => true
+        case _ => false
+      }.map{
+        case (key,vp) if that.fieldMap(key).eq(dataType.fieldMap(key)) => (key,vp)
+        case (key,vp)  => (key ,that.fieldMap(key).AnyToPack(vp.value))
+      }.values.toList
+
+      that.apply(useValues :_*)
+    }
 
     override def toString = itemToString(this)
 
