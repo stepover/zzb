@@ -414,9 +414,6 @@ class StructTypeTest extends WordSpec with MustMatchers {
       //同名字段只要基础类型一样也会被复制
       c1(Car.memo()).get.value mustBe "欢天喜地"
       c1(Car.memo()).get.dataType mustBe Car.memo()
-
-
-
     }
   }
 
