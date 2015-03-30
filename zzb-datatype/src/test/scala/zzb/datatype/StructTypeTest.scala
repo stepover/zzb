@@ -8,6 +8,7 @@ import org.scalatest.WordSpec
 import org.scalatest.MustMatchers
 import testuse._
 import spray.json.JsonParser
+import zzb.datatype
 
 
 class StructTypeTest extends WordSpec with MustMatchers {
@@ -274,8 +275,10 @@ class StructTypeTest extends WordSpec with MustMatchers {
       val userInfo1 = UserInfo(
         userName := Some("Simon"),
         userAge := Some(38),
+        driverAge := 10,
         memo := nullString
       )
+
       userInfo1(UserName) must equal(Some(UserName("Simon")))
 
       //      val userInfo2 = userInfo1 <~ (blood := 1)
@@ -287,6 +290,22 @@ class StructTypeTest extends WordSpec with MustMatchers {
       userInfo3(UserName) must equal(Some(UserName("wolfgang")))
       userInfo3(userAge) must equal(Some(UserAge(7)))
       serializeTest(userInfo1)
+
+      val userInfoA = UserInfo(
+        userName := Some("Simon"),
+        userAge := TInt(30),
+        memo := nullString
+      )
+
+      userInfoA(userAge).get.value mustBe 30
+
+      val userInfoB = UserInfo(
+        userName := Some("Simon"),
+        driverAge := userInfoA(userAge),
+        memo := nullString
+      )
+
+      userInfoB(driverAge).get.value mustBe 30
 
     }
 
@@ -353,9 +372,48 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
     }
 
-    "can be constructed with Type" in {
-      val car = CarInfo(CarLicense("京GNR110"))
+    "类型转换，两个类型共有字段同步复制" in {
+      import zzb.datatype._
 
+      val Height = TFloat("height","高度")
+      val Weight = TFloat("weight","重量")
+      val Years = TInt("years","年龄")
+      val Name = TString("name","名称")
+
+      object Man extends TStruct{
+        override val t_memo_ : String = "人类"
+
+        val height = Field(Height)
+        val weight = Field(Weight)
+        val name = Field(Name)
+        val years = Field(Years)
+        val address = Field(TString("address","地址"))
+
+        val memo = Field(TString("memo","备注"))
+      }
+
+      object Car extends TStruct{
+        override val t_memo_ : String = "人类"
+
+        val height = Field(Height)
+        val weight = Field(Weight)
+        val name = Field(Name)
+        val brand = Field(TString("brand","品牌"))
+        val memo = Field(TString("memo","备注"))
+      }
+
+      val m1: Man.Pack = Man(Man.years := 40, Man.height := 1.75f,Man.name := "Simon",Man.memo := "欢天喜地" )
+
+      val c1 = m1.to(Car)
+
+      c1(Car.height()).get.value mustBe 1.75f
+      c1(Car.name()).get.value mustBe "Simon"
+      c1(Years) mustBe None
+      c1(Car.brand()) mustBe None
+
+      //同名字段只要基础类型一样也会被复制
+      c1(Car.memo()).get.value mustBe "欢天喜地"
+      c1(Car.memo()).get.dataType mustBe Car.memo()
     }
   }
 

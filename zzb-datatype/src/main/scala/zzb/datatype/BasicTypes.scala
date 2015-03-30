@@ -348,6 +348,7 @@ trait TEnum extends TMono[EnumIdx] {
 
 object TEnum extends Enumeration with TEnum {
   override val t_memo_ : String = "Enum"
+
 }
 
 object EnumRegistry {

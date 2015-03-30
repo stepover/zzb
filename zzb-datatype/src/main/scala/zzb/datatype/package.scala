@@ -27,6 +27,18 @@ package object datatype {
 
   implicit def structField2InStructPath(field: StructField): NestedStructFields = field().path
 
+  def boxedType(rtClass: Class[_]) = rtClass match {
+    case java.lang.Byte.TYPE => Class.forName("java.lang.Byte")
+    case java.lang.Short.TYPE => Class.forName("java.lang.Short")
+    case java.lang.Character.TYPE => Class.forName("java.lang.Character")
+    case java.lang.Integer.TYPE => Class.forName("java.lang.Integer")
+    case java.lang.Long.TYPE => Class.forName("java.lang.Long")
+    case java.lang.Float.TYPE => Class.forName("java.lang.Float")
+    case java.lang.Double.TYPE => Class.forName("java.lang.Double")
+    case java.lang.Boolean.TYPE => Class.forName("java.lang.Boolean")
+    case rtc => rtc
+  }
+
   implicit class ValuePackOptWarp(itemOpt: Option[ValuePack[Any]]) {
     def apply[VT](dt: DataType[VT]): Option[ValuePack[VT]] = itemOpt match {
       case None =>
@@ -102,7 +114,6 @@ package object datatype {
         field().applyMapValue(v.map(kv => (kv._1, TVariant(kv._2.toString))))
       )
       case None => None
-
     }
   }
 
@@ -136,90 +147,39 @@ package object datatype {
     }
   }
 
-  // 字段赋值的 “:= 语法”
-  implicit class TStringFieldTrans(val field: () => TString) {
-    def :=(value: String) = Some(field().apply(value))
-    def :=(value: Option[String]) = value match {
-      case Some(v) => Some(field().apply(v))
+  class MonoTrans[VT,DT<:TMono[VT]]( field: () => DT)(implicit m: ClassTag[VT]){
+    def :=(value: VT) = Some(field().apply(value))
+    def :=(value: Option[_]) = value match {
+      case Some(v) if boxedType(m.runtimeClass).isInstance(v)  => Some(field().apply(v.asInstanceOf[VT]))
+      case Some(v:DT#Pack) if v.value != null  => Some(field().apply(v.value))
       case None => None
     }
+    def :=(value: DT#Pack) = Some(field().apply(value.value))
   }
 
-  // 字段赋值的 “:= 语法”
-  implicit class TIntFieldTrans(val field: () => TInt) {
-    def :=(value: Int) = Some(field().apply(value))
+  implicit class TStringFieldTrans(field: () => TString) extends MonoTrans[String,TString](field)
 
-    def :=(value: Option[Int]) = value match {
-      case Some(v) => Some(field().apply(v))
-      case None => None
-    }
-  }
+  implicit class TIntFieldTrans(field: () => TInt) extends MonoTrans[Int,TInt](field)
 
-  implicit class TLongFieldTrans(val field: () => TLong) {
-    def :=(value: Long) = Some(field().apply(value))
-    def :=(value: Option[Long]) =  value match {
-      case Some(v) => Some(field().apply(v))
-      case None => None
-    }
-  }
+  implicit class TLongFieldTrans(field: () => TLong) extends MonoTrans[Long,TLong](field)
 
-  implicit class TByteFieldTrans(val field: () => TByte) {
-    def :=(value: Byte) = Some(field().apply(value))
-    def :=(value: Option[Byte]) =  value match {
-      case Some(v) =>  Some(field().apply(v))
-      case None => None
-    }
-  }
+  implicit class TByteFieldTrans(field: () => TByte) extends MonoTrans[Byte,TByte](field)
 
-  implicit class TShortFieldTrans(val field: () => TShort) {
-    def :=(value: Short) = Some(field().apply(value))
-    def :=(value: Option[Short]) =  value match {
-      case Some(v) =>  Some(field().apply(v))
-      case None => None
-    }
-  }
+  implicit class TShortFieldTrans(field: () => TShort) extends MonoTrans[Short,TShort](field)
 
-  implicit class TFloatFieldTrans(val field: () => TFloat) {
-    def :=(value: Float) = Some(field().apply(value))
-    def :=(value: Option[Float]) = value match {
-      case Some(v) =>  Some(field().apply(v))
-      case None => None
-    }
-  }
+  implicit class TFloatFieldTrans(field: () => TFloat) extends MonoTrans[Float,TFloat](field)
 
-  implicit class TDoubleFieldTrans(val field: () => TDouble) {
-    def :=(value: Double) = Some(field().apply(value))
-    def :=(value: Option[Double]) = value match {
-      case Some(v) =>  Some(field().apply(v))
-      case None => None
-    }
-  }
+  implicit class TDoubleFieldTrans(field: () => TDouble) extends MonoTrans[Double,TDouble](field)
+
+  implicit class TBooleanFieldTrans(field: () => TBoolean) extends MonoTrans[Boolean,TBoolean](field)
+
+  implicit class TBigDecimalFieldTrans(field: () => TBigDecimal) extends MonoTrans[BigDecimal,TBigDecimal](field)
+
+  implicit class TEnumFieldTrans(field: () => TEnum) extends MonoTrans[EnumIdx,TEnum](field)
 
   import com.github.nscala_time.time.Imports._
-
-  implicit class TDateTimeFieldTrans(val field: () => TDateTime) {
-    def :=(value: DateTime) = Some(field().apply(value))
-    def :=(value: Option[DateTime]) = value match {
-      case Some(v) => Some(field().apply(v))
-      case None => None
-    }
-  }
-
-  implicit class TBigDecimalFieldTrans(val field: () => TBigDecimal) {
-    def :=(value: BigDecimal) = Some(field().apply(value))
-    def :=(value: Option[BigDecimal]) = value match {
-      case Some(v) => Some(field().apply(v))
-      case None => None
-    }
-  }
-
-  implicit class TBooleanFieldTrans(val field: () => TBoolean) {
-    def :=(value: Boolean) = Some(field().apply(value))
-    def :=(value: Option[Boolean]) =  value match {
-      case Some(v) => Some(field().apply(v))
-      case None => None
-    }
-  }
+  implicit class TDateTimeFieldTrans(field: () => TDateTime) extends MonoTrans[DateTime,TDateTime](field)
+  
 
   private val datePatterns = "YYYY-MM-dd HH:mm:ss" ::
     "YYYY-MM-dd" ::

@@ -616,15 +616,30 @@ trait TStruct extends DataType[StructValue] {
 
     def -(vts: Seq[DataType[Any]]): Pack = Pack(value subList vts, revise + 1)
 
-    def <~(fieldBlock: => ValuePack[Any]): Pack = try {
-      Pack(value plus fieldBlock, revise + 1)
-    } catch {
-      case ex: Throwable => this
-    }
+    def <~(fieldBlock: => ValuePack[_]): Pack = alter(fieldBlock)
 
-    def <~~(fieldsBlock: => Seq[ValuePack[Any]]): Pack = try {
-      Pack(value plusList fieldsBlock, revise + 1)
-    } catch {
+    //def <~(fieldsBlock: => Seq[_]): Pack = copy(fieldsBlock)
+
+    def <~~(fieldsBlock: => Seq[_]): Pack = alter(fieldsBlock)
+
+    def alter(fieldsBlock: => AnyRef) = try {
+      fieldsBlock match {
+        case vp: ValuePack[_] =>
+          Pack(value plus vp, revise + 1)
+        case Some(vp:ValuePack[_]) =>
+          Pack(value plus vp, revise + 1)
+        case seq: Seq[_] =>
+          val validValues = seq.filter {
+            case v: ValuePack[_] => true
+            case Some(v: ValuePack[_]) => true
+            case _ => false
+          }.map {
+            case v: ValuePack[_] => v
+            case Some(v: ValuePack[_]) => v
+          }
+          Pack(value plusList validValues, revise + 1)
+      }
+    }catch {
       case ex: Throwable => this
     }
 
@@ -633,6 +648,18 @@ trait TStruct extends DataType[StructValue] {
       Pack(value xor other.value, revise + 1)
     }
 
+    def to[That<:TStruct](that:That):That#Pack = {
+      val useValues = value.values.filter{
+        case (key,vp) if that.hasField(key) && dataType.hasField(key)  &&
+          (that.fieldMap(key).eq(dataType.fieldMap(key)) || that.fieldMap(key).vtm == dataType.fieldMap(key).vtm) => true
+        case _ => false
+      }.map{
+        case (key,vp) if that.fieldMap(key).eq(dataType.fieldMap(key)) => (key,vp)
+        case (key,vp)  => (key ,that.fieldMap(key).AnyToPack(vp.value))
+      }.values.toList
+
+      that.apply(useValues :_*)
+    }
 
     override def toString = itemToString(this)
 
