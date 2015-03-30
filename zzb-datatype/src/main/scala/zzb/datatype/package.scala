@@ -175,6 +175,8 @@ package object datatype {
 
   implicit class TBigDecimalFieldTrans(field: () => TBigDecimal) extends MonoTrans[BigDecimal,TBigDecimal](field)
 
+  implicit class TEnumFieldTrans(field: () => TEnum) extends MonoTrans[EnumIdx,TEnum](field)
+
   import com.github.nscala_time.time.Imports._
   implicit class TDateTimeFieldTrans(field: () => TDateTime) extends MonoTrans[DateTime,TDateTime](field)
   
