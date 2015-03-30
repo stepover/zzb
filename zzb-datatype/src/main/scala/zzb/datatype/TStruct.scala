@@ -621,9 +621,23 @@ trait TStruct extends DataType[StructValue] {
     } catch {
       case ex: Throwable => this
     }
+//
+//    def <~~(fieldsBlock: => Seq[ValuePack[Any]]): Pack = try {
+//      Pack(value plusList fieldsBlock, revise + 1)
+//    } catch {
+//      case ex: Throwable => this
+//    }
 
-    def <~~(fieldsBlock: => Seq[ValuePack[Any]]): Pack = try {
-      Pack(value plusList fieldsBlock, revise + 1)
+    def <~~(fieldsBlock: => Seq[_]): Pack = try {
+      val validValues = fieldsBlock.filter{
+        case v:ValuePack[_] => true
+        case Some(v:ValuePack[_]) => true
+        case _ => false
+      }.map{
+        case v:ValuePack[_] => v
+        case Some(v:ValuePack[_]) => v
+      }
+      Pack(value plusList validValues, revise + 1)
     } catch {
       case ex: Throwable => this
     }

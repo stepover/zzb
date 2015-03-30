@@ -274,8 +274,10 @@ class StructTypeTest extends WordSpec with MustMatchers {
       val userInfo1 = UserInfo(
         userName := Some("Simon"),
         userAge := Some(38),
+        driverAge := 10,
         memo := nullString
       )
+
       userInfo1(UserName) must equal(Some(UserName("Simon")))
 
       //      val userInfo2 = userInfo1 <~ (blood := 1)
@@ -287,6 +289,22 @@ class StructTypeTest extends WordSpec with MustMatchers {
       userInfo3(UserName) must equal(Some(UserName("wolfgang")))
       userInfo3(userAge) must equal(Some(UserAge(7)))
       serializeTest(userInfo1)
+
+      val userInfoA = UserInfo(
+        userName := Some("Simon"),
+        userAge := TInt(30),
+        memo := nullString
+      )
+
+      userInfoA(userAge).get.value mustBe 30
+
+      val userInfoB = UserInfo(
+        userName := Some("Simon"),
+        driverAge := userInfoA(userAge),
+        memo := nullString
+      )
+
+      userInfoB(driverAge).get.value mustBe 30
 
     }
 
