@@ -1,5 +1,6 @@
 package zzb.storage
 
+import akka.event.NoLogging
 import org.scalatest.FlatSpec
 import zzb.datatype.VersionInfo
 import zzb.storage.data._
@@ -15,7 +16,7 @@ import zzb.storage.data.CarInfo._
 class DocProcessorTest extends FlatSpec {
 
   import HomeInfo._
-  //import ExecutionContext.Implicits.global
+
   val storage = new Storage(new MemoryDriver[String, ID.type, HomeInfo.type](delay = 200) {
     override val docType = HomeInfo
   })

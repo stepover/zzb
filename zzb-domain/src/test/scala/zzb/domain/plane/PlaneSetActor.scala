@@ -20,7 +20,7 @@ class PlaneSetActor extends DomainSetActor[String, TString, Plane.type] {
   def logName: String = "zzb.domain.Plane"
 
   val storage: Storage[String, TString, Plane.type] =
-    memoryStorage[String, TString, Plane.type](Plane)
+    memoryStorage[String, TString, Plane.type](Plane,log = this.log)
 
   val idGenerator = Iterator from 10000
 

@@ -1,5 +1,6 @@
 package zzb.storage
 
+import akka.event.{NoLogging, LoggingAdapter}
 import com.mongodb.casbah.Imports
 import org.joda.time.DateTime
 import spray.caching.SimpleLruCache
@@ -430,6 +431,8 @@ class SpecificStorage[K, KT <: DataType[K], T <: TStorable[K, KT]](val key: K, v
 trait Driver[K, KT <: DataType[K], T <: TStorable[K, KT]] {
 
   val docType: T
+
+  val logger : LoggingAdapter = NoLogging
 
   def getKey(pack: T#Pack): K = {
     pack(pack.dataType.asInstanceOf[TStorable[K, KT]].keyType).get.value

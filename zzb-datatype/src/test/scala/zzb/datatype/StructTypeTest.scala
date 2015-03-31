@@ -113,7 +113,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
       userInfo1(UserAge) must be(None)
 
-      val userInfo2 = userInfo1 <~~ List(UserAge(38), DriverAge(8))
+      val userInfo2 = userInfo1 <~~ List(UserAge(38), Some(DriverAge(8)))
       userInfo2(UserAge) must equal(Some(UserAge(38)))
       userInfo2(NoThis) must be(None)
 
@@ -121,6 +121,11 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
       userInfo3(DriverAge) must be(None)
       userInfo3(UserAge) must be(None)
+
+
+      val u0 = UserInfo() <~~ List(UserInfo.userName()("simon"),UserAge(34))
+      u0(UserInfo.userName()).get.value mustBe "simon"
+      u0(UserInfo.userAge()).get.value mustBe 34
     }
 
     "two TStructType instance override field values" in {
@@ -380,6 +385,15 @@ class StructTypeTest extends WordSpec with MustMatchers {
       val Years = TInt("years","年龄")
       val Name = TString("name","名称")
 
+      object Color extends Enumeration with TEnum {
+        val t_memo_ = "颜色"
+        val W = Value(1, "白色")
+        val B = Value(2, "黑色")
+        val Y = Value(3, "黄色")
+      }
+
+      val dd: Color.Value = Color.W
+
       object Man extends TStruct{
         override val t_memo_ : String = "人类"
 
@@ -388,6 +402,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
         val name = Field(Name)
         val years = Field(Years)
         val address = Field(TString("address","地址"))
+        val color = Field(Color)
 
         val memo = Field(TString("memo","备注"))
       }
@@ -399,10 +414,11 @@ class StructTypeTest extends WordSpec with MustMatchers {
         val weight = Field(Weight)
         val name = Field(Name)
         val brand = Field(TString("brand","品牌"))
+        val color = Field(Color)
         val memo = Field(TString("memo","备注"))
       }
 
-      val m1: Man.Pack = Man(Man.years := 40, Man.height := 1.75f,Man.name := "Simon",Man.memo := "欢天喜地" )
+      val m1: Man.Pack = Man(Man.years := 40, Man.height := 1.75f,Man.name := "Simon",Man.memo := "欢天喜地" ) <~~ List(Some(Color.W))
 
       val c1 = m1.to(Car)
 
@@ -410,6 +426,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
       c1(Car.name()).get.value mustBe "Simon"
       c1(Years) mustBe None
       c1(Car.brand()) mustBe None
+      c1(Car.color()).get.value.idx mustBe 1
 
       //同名字段只要基础类型一样也会被复制
       c1(Car.memo()).get.value mustBe "欢天喜地"
