@@ -120,6 +120,11 @@ trait TMap[K, V] extends DataType[Map[K, V]] {
 
     def get(k: K): Option[V] = value.get(k)
 
+    def getOrElse(key: K, default: => V) = get(key) match {
+      case Some(v) => v
+      case None => default
+    }
+
     value.foreach(kv => if (!oneFilter(kv)) throw new NotAllowKeyException(dataType, kv._1))
 
     def validate: List[String] = validate(validators)

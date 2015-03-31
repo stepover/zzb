@@ -1,6 +1,7 @@
 package zzb.datatype
 
 import org.scalatest.{MustMatchers, WordSpec}
+import zzb.datatype.TVariant
 import zzb.datatype.testuse.UserInfo
 
 
@@ -43,10 +44,6 @@ class TPropertyTest extends WordSpec with MustMatchers {
       val u0: UserInfo.Pack = UserInfo(userName := "simon")
       u0.misc.size mustBe 0
     }
-
   }
-
-
-
 }
 
