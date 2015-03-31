@@ -2,11 +2,11 @@ package zzb.storage.dirvers
 
 import java.util.Comparator
 
+import akka.event.LoggingAdapter
 import akka.util.Index
-import org.joda.time.DateTime
-import spray.json._
 import zzb.datatype._
-import zzb.storage.{KeyNotFountException, DuplicateTagException, Driver, TStorable}
+import zzb.storage.{Driver, TStorable}
+import zzb.util.log.Clock._
 
 import scala.collection.mutable
 
@@ -27,18 +27,21 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
     override def compare(o1: T#Pack, o2: T#Pack): Int = o2.version.compareTo(o1.version) //保证降序排列
   })
 
-  def nextVerNum(key:K) :Int = {
+  implicit def theLog: LoggingAdapter = logger
+
+  def nextVerNum(key: K): Int = clocking("get nextVerNum") {
     val vit = db.valueIterator(key)
-    val verNum = if (vit.hasNext) vit.next().version +1 else 1
-    logger.debug("next ver num:{}",verNum )
+    val verNum = if (vit.hasNext) vit.next().version + 1 else 1
+    logger.debug("next ver num:{}", verNum)
     verNum
   }
 
-  def put(key:K,pack: T#Pack,replace : Boolean ):T#Pack = {
+
+  def put(key: K, pack: T#Pack, replace: Boolean): T#Pack = clocking("put data key {}", key) {
     val vit = db.valueIterator(key)
-    if( vit.hasNext && replace)
-      db.remove(key,vit.next())
-    db.put(key,pack)
+    if (vit.hasNext && replace)
+      db.remove(key, vit.next())
+    db.put(key, pack)
     pack
   }
 
@@ -53,7 +56,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param tag 标签
    * @return 文档
    */
-  def load(key: K, tag: String): Option[T#Pack] = {
+  def load(key: K, tag: String): Option[T#Pack] = clocking("load data key {} tag", key, tag) {
     db.findValue(key)(_.tag == tag)
   }
 
@@ -63,7 +66,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param verNum 版本号，小于0表示获取最新版
    * @return 文档
    */
-  def load(key: K, verNum: Int): Option[T#Pack] = {
+  def load(key: K, verNum: Int): Option[T#Pack] = clocking("load data key {} version {}", key, verNum) {
     if (verNum >= 0) {
       //指定版本时无论是否标记删除都装载
       if (delay > 0) Thread.sleep(delay)
@@ -73,9 +76,9 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
       if (mb.contains(key)) None //装最新版时检查是否已经标记删除
       else {
         val vit = db.valueIterator(key)
-        if(vit.isEmpty)
+        if (vit.isEmpty)
           None
-        else{
+        else {
           if (delay > 0) Thread.sleep(delay)
           Some(vit.next())
         }
@@ -88,8 +91,10 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param key 主键
    * @return 文档版本信息列表
    */
-  def versions(key: K): Seq[VersionInfo.Pack] = db.values.map(pack =>
-    pack(VersionInfo).get.asInstanceOf[VersionInfo.Pack]).toSeq
+  def versions(key: K): Seq[VersionInfo.Pack] = clocking("load key {} version list", key) {
+    db.values.map(pack =>
+      pack(VersionInfo).get.asInstanceOf[VersionInfo.Pack]).toSeq
+  }
 
   /**
    * 删除指定文档
@@ -97,12 +102,12 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * @param justMarkDelete 是否标记删除
    * @return 删除数量 1 或 0
    */
-  override def delete(key: K, justMarkDelete: Boolean): Int = {
+  override def delete(key: K, justMarkDelete: Boolean): Int = clocking("delete data key {} ", key) {
     val vit = db.valueIterator(key)
-    (justMarkDelete,vit.nonEmpty ) match {
-      case (_, false) => 0  //指定的key不存在
-      case (true,true) => mb.add(key); 1 //标记删除
-      case (false,true) => db.remove(key);mb.remove(key);1 //真正删除
+    (justMarkDelete, vit.nonEmpty) match {
+      case (_, false) => 0 //指定的key不存在
+      case (true, true) => mb.add(key); 1 //标记删除
+      case (false, true) => db.remove(key); mb.remove(key); 1 //真正删除
     }
   }
 
@@ -110,7 +115,7 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
    * 根据路径、值查询最新版本文档列表
    * @param params 路径，值键值对参数序列
    **/
-  def find(params: (StructPath, Any)*): List[T#Pack] = {
+  def find(params: (StructPath, Any)*): List[T#Pack] = clocking("find data params {}",params){
     def query =
       (doc: T#Pack) => {
         params.forall {
