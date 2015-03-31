@@ -39,6 +39,8 @@ package object datatype {
     case rtc => rtc
   }
 
+  implicit def packToOption(pack :ValuePack[_]): Some[ValuePack[_]] = Some(pack)
+
   implicit class ValuePackOptWarp(itemOpt: Option[ValuePack[Any]]) {
     def apply[VT](dt: DataType[VT]): Option[ValuePack[VT]] = itemOpt match {
       case None =>
@@ -175,7 +177,15 @@ package object datatype {
 
   implicit class TBigDecimalFieldTrans(field: () => TBigDecimal) extends MonoTrans[BigDecimal,TBigDecimal](field)
 
-  implicit class TEnumFieldTrans(field: () => TEnum) extends MonoTrans[EnumIdx,TEnum](field)
+  implicit class TEnumFieldTrans[DT<:TEnum](field: () => DT) {
+    //def :=(value: VT) = Some(field().apply(value))
+    def :=(value: Option[DT#Pack]) = value match {
+      //case Some(v) if boxedType(m.runtimeClass).isInstance(v)  => Some(field().apply(v.asInstanceOf[VT]))
+      case Some(v:DT#Pack) if v.value != null  => Some(field().apply(v.value))
+      case _ => None
+    }
+    //def :=(value: DT#Pack) = Some(field().apply(value.value))
+  }
 
   import com.github.nscala_time.time.Imports._
   implicit class TDateTimeFieldTrans(field: () => TDateTime) extends MonoTrans[DateTime,TDateTime](field)

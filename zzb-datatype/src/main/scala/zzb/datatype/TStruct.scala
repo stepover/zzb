@@ -28,14 +28,6 @@ StructValue(values: Map[String, ValuePack[Any]],
             fieldMap: Map[String, DataType[Any]],
             requiredField: Set[DataType[Any]]) {
 
-  //  val messages = for (dt <- requiredField if !values.contains(dt.t_code_)) yield dt.t_code_
-  //
-  //  if (messages.size > 0) {
-  //    val msg = messages.mkString(";")
-  //    throw new RequiredFieldNotSetException(s"fields [$msg] is required.")
-  //  }
-
-
   def apply[VT](dt: DataType[VT]): Option[ValuePack[VT]] = values.get(dt.t_code_) match {
     case None => None
     case Some(v) =>
@@ -260,7 +252,7 @@ trait TStruct extends DataType[StructValue] {
   }
 
   def fieldsInfo = for (name <- fieldMap.keys)
-  yield FieldInfo(name, fieldMap(name), fieldFuncMap(name),
+    yield FieldInfo(name, fieldMap(name), fieldFuncMap(name),
       requiredField.contains(fieldMap(name)), fieldDefault.get(name))
 
   def hasField(code: String) = fieldMap.contains(code)
@@ -616,30 +608,14 @@ trait TStruct extends DataType[StructValue] {
 
     def -(vts: Seq[DataType[Any]]): Pack = Pack(value subList vts, revise + 1)
 
-    def <~(fieldBlock: => ValuePack[_]): Pack = alter(fieldBlock)
+    def <~(fieldBlock: => Option[ValuePack[_]]): Pack = alter(List(fieldBlock))
 
-    //def <~(fieldsBlock: => Seq[_]): Pack = copy(fieldsBlock)
+    def <~~(fieldsBlock: => Seq[Option[ValuePack[_]]]): Pack = alter(fieldsBlock)
 
-    def <~~(fieldsBlock: => Seq[_]): Pack = alter(fieldsBlock)
-
-    def alter(fieldsBlock: => AnyRef) = try {
-      fieldsBlock match {
-        case vp: ValuePack[_] =>
-          Pack(value plus vp, revise + 1)
-        case Some(vp:ValuePack[_]) =>
-          Pack(value plus vp, revise + 1)
-        case seq: Seq[_] =>
-          val validValues = seq.filter {
-            case v: ValuePack[_] => true
-            case Some(v: ValuePack[_]) => true
-            case _ => false
-          }.map {
-            case v: ValuePack[_] => v
-            case Some(v: ValuePack[_]) => v
-          }
-          Pack(value plusList validValues, revise + 1)
-      }
-    }catch {
+    def alter(fieldsBlock: => Seq[Option[ValuePack[_]]]) = try {
+      val validValues = fieldsBlock.filter(_.isDefined).map(_.get)
+      Pack(value plusList validValues, revise + 1)
+    } catch {
       case ex: Throwable => this
     }
 
@@ -648,17 +624,17 @@ trait TStruct extends DataType[StructValue] {
       Pack(value xor other.value, revise + 1)
     }
 
-    def to[That<:TStruct](that:That):That#Pack = {
-      val useValues = value.values.filter{
-        case (key,vp) if that.hasField(key) && dataType.hasField(key)  &&
+    def to[That <: TStruct](that: That): That#Pack = {
+      val useValues = value.values.filter {
+        case (key, vp) if that.hasField(key) && dataType.hasField(key) &&
           (that.fieldMap(key).eq(dataType.fieldMap(key)) || that.fieldMap(key).vtm == dataType.fieldMap(key).vtm) => true
         case _ => false
-      }.map{
-        case (key,vp) if that.fieldMap(key).eq(dataType.fieldMap(key)) => (key,vp)
-        case (key,vp)  => (key ,that.fieldMap(key).AnyToPack(vp.value))
+      }.map {
+        case (key, vp) if that.fieldMap(key).eq(dataType.fieldMap(key)) => (key, vp)
+        case (key, vp) => (key, that.fieldMap(key).AnyToPack(vp.value))
       }.values.toList
 
-      that.apply(useValues :_*)
+      that.apply(useValues: _*)
     }
 
     override def toString = itemToString(this)

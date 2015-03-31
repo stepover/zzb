@@ -287,6 +287,8 @@ trait TEnum extends TMono[EnumIdx] {
 
   implicit def enumValue2Pack(ev: this.type#Value) = Pack(EnumIdx(ev.id))
 
+  implicit def enumValue2PackOption(ev: this.type#Value) = Some(Pack(EnumIdx(ev.id)))
+
   //implicit def Packe2EnumValue(ev: this.type#Value) = Pack(EnumIdx(ev.id))
 
   implicit def enumPack2Int(ei: Pack): Int = ei.value.idx
