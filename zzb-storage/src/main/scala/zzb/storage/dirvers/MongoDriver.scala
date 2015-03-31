@@ -1,24 +1,19 @@
 package zzb.storage.dirvers
 
-import com.mongodb.casbah.{query, Imports}
-import com.mongodb.casbah.Imports._
-import com.mongodb.casbah.query.dsl.QueryExpressionObject
-import zzb.datatype._
-import org.joda.time.DateTime
+import com.mongodb.casbah.Imports
+import com.mongodb.util.JSON
 import spray.json._
+import zzb.datatype._
+import zzb.db.MongoAccess
 import zzb.storage.{DBObjectHelper, Driver, TStorable}
 
-import com.mongodb.util.JSON
-import scala.Some
-import zzb.db.MongoAccess
-import com.typesafe.scalalogging.slf4j.Logging
 
 /**
  * Created by Rowe.Luo on 2014/4/21
  * mongodb数据驱动，主要用于测试
  * @param delay 读写操作延迟的毫秒数，默认为0，不延迟
  */
-abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] with MongoAccess with DBObjectHelper with Logging {
+abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] with MongoAccess with DBObjectHelper  {
 
   import com.mongodb.casbah.Imports._
 

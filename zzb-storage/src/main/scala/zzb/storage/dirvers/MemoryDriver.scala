@@ -29,7 +29,9 @@ abstract class MemoryDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: 
 
   def nextVerNum(key:K) :Int = {
     val vit = db.valueIterator(key)
-    if (vit.hasNext) vit.next().version +1 else 1
+    val verNum = if (vit.hasNext) vit.next().version +1 else 1
+    logger.debug("next ver num:{}",verNum )
+    verNum
   }
 
   def put(key:K,pack: T#Pack,replace : Boolean ):T#Pack = {
