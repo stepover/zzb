@@ -121,6 +121,11 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
       userInfo3(DriverAge) must be(None)
       userInfo3(UserAge) must be(None)
+
+
+      val u0 = UserInfo() <~~ List(UserInfo.userName()("simon"),UserAge(34))
+      u0(UserInfo.userName()).get.value mustBe "simon"
+      u0(UserInfo.userAge()).get.value mustBe 34
     }
 
     "two TStructType instance override field values" in {
