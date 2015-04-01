@@ -39,7 +39,11 @@ package object datatype {
     case rtc => rtc
   }
 
-  implicit def packToOption(pack :ValuePack[_]): Some[ValuePack[_]] = Some(pack)
+  implicit def packToOption(pack :ValuePack[_]): Option[ValuePack[_]] = Some(pack)
+
+  implicit def structValueToPackList(v: StructValue): List[Some[ValuePack[Any]]] =  v.values.values.map(Some(_)).toList
+
+  //implicit def singlePackToSeq(packOpt :Option[ValuePack[_]]): Seq[Option[ValuePack[_]]] = List(packOpt)
 
   implicit class ValuePackOptWarp(itemOpt: Option[ValuePack[Any]]) {
     def apply[VT](dt: DataType[VT]): Option[ValuePack[VT]] = itemOpt match {

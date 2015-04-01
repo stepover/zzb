@@ -95,7 +95,7 @@ class EnsureTest extends WordSpec with MustMatchers {
       val suite4 = suite3 ~ List(NcfTheftIns.makeItem(1), NcfVehicleDemageIns.makeItem(1)) //suite 复制时过滤器会被保存
       suite4.Items.usedKeys.size must equal(2)
 
-      val suite5 = BizSuite(filter, charge := 1000.1, discountRate := 0.9, suite4.Items)
+      val suite5 = BizSuite.makeWithFilter(filter, charge := 1000.1, discountRate := 0.9, suite4.Items)
       suite5.Items.usedKeys.size must equal(2)
     }
 
@@ -129,14 +129,14 @@ class EnsureTest extends WordSpec with MustMatchers {
         messages1.size must equal(3)
 
         val ddd: BizSuite.Item.Pack = DriverIns.makeItem(1)
-        val sss = ddd.make(Item.charge := 99)
+        val sss = ddd.alter(Item.charge := 99)
 
-        val suite2 = suite1 ~ DriverIns.makeItem(1).make(Item.charge := 99) //保费小于100，仍然会报错
+        val suite2 = suite1 ~ DriverIns.makeItem(1).alter(Item.charge := 99) //保费小于100，仍然会报错
 
         val messages2 = suite2.doValidate
         messages2.size must equal(3)
 
-        val suite3 = suite2 ~ DriverIns.makeItem(1).make(Item.charge := 100) //错误已修正
+        val suite3 = suite2 ~ DriverIns.makeItem(1).alter(Item.charge := 100) //错误已修正
 
         val messages3 = suite3.doValidate
         messages3.size must equal(2)

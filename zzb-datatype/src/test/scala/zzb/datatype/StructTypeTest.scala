@@ -117,6 +117,10 @@ class StructTypeTest extends WordSpec with MustMatchers {
       userInfo2(UserAge) must equal(Some(UserAge(38)))
       userInfo2(NoThis) must be(None)
 
+      val userInfo2_1 = userInfo1.alter(UserAge(38), Some(DriverAge(8)))
+      userInfo2_1(UserAge) must equal(Some(UserAge(38)))
+      userInfo2_1(NoThis) must be(None)
+
       val userInfo3 = userInfo1 - List(UserAge, DriverAge)
 
       userInfo3(DriverAge) must be(None)
@@ -161,7 +165,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
     }
     "construct from other" in {
       val userInfo1 = UserInfo(UserName("Simon"), UserAge(38))
-      val userInfo2 = UserInfo(userInfo1.value)
+      val userInfo2 = UserInfo.use(userInfo1.value)
       val userInfo3 = UserInfo(userInfo2)
 
       userInfo2(UserAge) must equal(Some(UserAge(38)))
@@ -236,7 +240,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
       home4(CarInfo)(CarLicense) must be(None)
       home4(CarInfo)(CarVin) must be(None)
 
-      home4(HomeInfo.carInfo().carVin())(CarLicense) must be(None)
+      home4.apply(HomeInfo.carInfo().carVin())(CarLicense) must be(None)
 
     }
 
@@ -290,7 +294,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
       //
       //      userInfo2(blood) must equal(Some(BloodType(1)))
 
-      val userInfo3 = userInfo1.make(userName := "wolfgang", userAge := 7)
+      val userInfo3 = userInfo1.alter(userName := "wolfgang", userAge := 7)
 
       userInfo3(UserName) must equal(Some(UserName("wolfgang")))
       userInfo3(userAge) must equal(Some(UserAge(7)))

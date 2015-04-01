@@ -173,7 +173,7 @@ class MacroTypeTest extends WordSpec with MustMatchers {
     "construct from other" in {
       import UserInfo._
       val userInfo1 = UserInfo(userName()("Simon"), userAge()(38))
-      val userInfo2 = UserInfo(userInfo1.value)
+      val userInfo2 = UserInfo.use(userInfo1.value)
 
       userInfo2(userAge()) must equal(Some(userAge()(38)))
       userInfo2(userName()) must equal(Some(userName()("Simon")))
