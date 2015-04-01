@@ -248,7 +248,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
 
 
   private def historyCollection[M](f: MongoCollection => M) = {
-    db(dbname) { d =>
+    db(dbname){d=>
       f(d(docType.t_code_ + "_history"))
     }
   }
