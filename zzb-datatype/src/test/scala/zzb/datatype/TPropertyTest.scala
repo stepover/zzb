@@ -1,7 +1,6 @@
 package zzb.datatype
 
 import org.scalatest.{MustMatchers, WordSpec}
-import zzb.datatype.TVariant
 import zzb.datatype.testuse.UserInfo
 
 

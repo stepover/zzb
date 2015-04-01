@@ -160,15 +160,12 @@ trait Suite extends TStruct {
    * 根据所给的字段值创建一个 Suite 对象，如果没有给保障项目，则（保障项目为空，允许所有的保障项目），
    * 如果给出了保障项目，则过滤规则按照给出的保障项目已有的定义
    */
-  override def apply(values: AnyRef*) = {
+  override def apply(values: Option[ValuePack[_]]*) = {
     val items = values.filter{
       case vp :ValuePack[_] if vp.value != null => true
       case Some(vp:ValuePack[_]) if vp.value != null => true
       case _ => false
-    }.map{
-      case vp :ValuePack[_]  => vp
-      case Some(vp:ValuePack[_])  => vp
-    }
+    }.map(_.get)
     if (items.exists(v => v.dataType == InnerItems))
       innerApply(items)
     else

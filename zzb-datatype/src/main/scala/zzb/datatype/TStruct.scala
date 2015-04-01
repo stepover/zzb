@@ -104,7 +104,7 @@ StructValue(values: Map[String, ValuePack[Any]],
         case (None, Some(r)) => rv
         case (Some(l), Some(r)) if l != r || requiredField.contains(dt) =>
           (l, r) match {
-            case (ll: TStruct#Pack, rr: TStruct#Pack) => Some(ll.dataType(ll.value.xor(rr.value)))
+            case (ll: TStruct#Pack, rr: TStruct#Pack) => Some(ll.dataType.use(ll.value.xor(rr.value)))
             case _ => Some(l)
           }
         case _ => None
@@ -259,52 +259,26 @@ trait TStruct extends DataType[StructValue] {
 
   def hasField(dt: DataType[Any]) = fieldMap.contains(dt.t_code_)
 
-
-  def apply(values: AnyRef*): Pack = {
+  def apply(values: Option[ValuePack[_]]*): Pack = {
     if (values.size == 1) {
       values.apply(0) match {
-        case pack: Pack => apply(pack.value)
-        case vp: ValuePack[_] if hasField(vp.code) && vp.value != null =>
-          makeValuePackWithDefault(Map(vp.code -> vp))
-        case Some(vp: ValuePack[_]) if hasField(vp.code) && vp.value != null =>
+        case Some(pack: Pack) => use(pack.value)
+        case Some(vp) if hasField(vp.code) && vp.value != null =>
           makeValuePackWithDefault(Map(vp.code -> vp))
         case _ => throw new IllegalArgumentException("Invalid Param")
       }
     } else {
       val transValues = values.filter {
-        case vp: ValuePack[_] if hasField(vp.code) && vp.value != null => true
-        case Some(vp: ValuePack[_]) if hasField(vp.code) && vp.value != null => true
+        case Some(vp) if hasField(vp.code) && vp.value != null => true
         case _ => false
-      }.map {
-        case vp: ValuePack[_] => vp.code -> vp
-        case Some(vp: ValuePack[_]) => vp.code -> vp
-      }.toMap
+      }.map(
+        vpOpt =>  vpOpt.get.code -> vpOpt.get
+      ).toMap
       makeValuePackWithDefault(transValues)
     }
   }
 
-  //    values.length match {
-  //    case 1 =>
-  //      values.apply(0) match {
-  //        case p: Pack => apply(p.value)
-  //        case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)) yield (v.code, v)).toMap)
-  //      }
-  //    case _ => makeValuePackWithDefault((for (v <- values if hasField(v.code)  && v.value !=null  ) yield (v.code, v)).toMap)
-  //  }
-
-
-  // <editor-fold defaultstate="collapsed" desc="构造 Struct 实例 ">
-
-  //  def apply(values: Option[ValuePack[Any]]*): Pack = values.length match {
-  //    case 1 =>
-  //      values.apply(0) match {
-  //        case Some(p: Pack) => apply(p.value)
-  //        case _ => makeValuePackWithDefault((for (v <- values if v.isDefined && hasField(v.get.code) && v.get.value != null) yield (v.get.code, v.get)).toMap)
-  //      }
-  //    case _ => makeValuePackWithDefault((for (v <- values if v.isDefined && hasField(v.get.code) && v.get.value != null) yield (v.get.code, v.get)).toMap)
-  //  }
-
-  def apply(v: StructValue): Pack = makeValuePackWithDefault(v.values)
+  def use(v: StructValue): Pack = makeValuePackWithDefault(v.values)
 
   def unapply(p: Pack) = if (p == null) None else Some(p)
 
@@ -343,10 +317,10 @@ trait TStruct extends DataType[StructValue] {
 
   //此类型和下面的隐式转换构成 字段赋值的 “:= 语法”
   implicit class FieldTrans(val field: () => this.type) {
-    def :=(value: StructValue) = Some(field().apply(value))
+    def :=(value: StructValue) = Some(field().use(value))
 
     def :=(value: Option[StructValue]) = value match {
-      case Some(v) => Some(field().apply(value))
+      case Some(v) => Some(field().use(v))
       case None => None
     }
   }
@@ -539,20 +513,6 @@ trait TStruct extends DataType[StructValue] {
 
     //----------------------------序列化 end
 
-    //def apply(packs: ValuePack[Any]*) = plusList(packs)
-
-    def make(values: AnyRef*) = {
-      val packs = values.filter {
-        case vp: ValuePack[_] if vp.value != null => true
-        case Some(vp: ValuePack[_]) if vp.value != null => true
-        case _ => false
-      }.map {
-        case vp: ValuePack[_] => vp
-        case Some(vp: ValuePack[_]) => vp
-      }
-      plusList(packs)
-    }
-
     def isOnlyRequireFields: Boolean = value.isOnlyRequireFields
 
     def fieldCount: Int = value.size
@@ -608,11 +568,17 @@ trait TStruct extends DataType[StructValue] {
 
     def -(vts: Seq[DataType[Any]]): Pack = Pack(value subList vts, revise + 1)
 
-    def <~(fieldBlock: => Option[ValuePack[_]]): Pack = alter(List(fieldBlock))
+    def <~(fieldBlock: => Option[ValuePack[_]]): Pack =
+      try{  alter(List(fieldBlock):_*)}catch {
+        case ex: Throwable => this
+      }
 
-    def <~~(fieldsBlock: => Seq[Option[ValuePack[_]]]): Pack = alter(fieldsBlock)
+    def <~~(fieldsBlock: => Seq[Option[ValuePack[_]]]): Pack =
+      try{  alter(fieldsBlock:_*)}catch {
+        case ex: Throwable => this
+      }
 
-    def alter(fieldsBlock: => Seq[Option[ValuePack[_]]]) = try {
+    def alter(fieldsBlock: Option[ValuePack[_]]*) = try {
       val validValues = fieldsBlock.filter(_.isDefined).map(_.get)
       Pack(value plusList validValues, revise + 1)
     } catch {
@@ -630,7 +596,7 @@ trait TStruct extends DataType[StructValue] {
           (that.fieldMap(key).eq(dataType.fieldMap(key)) || that.fieldMap(key).vtm == dataType.fieldMap(key).vtm) => true
         case _ => false
       }.map {
-        case (key, vp) if that.fieldMap(key).eq(dataType.fieldMap(key)) => (key, vp)
+        case (key, vp) if that.fieldMap(key).eq(dataType.fieldMap(key)) => (key, Some(vp))
         case (key, vp) => (key, that.fieldMap(key).AnyToPack(vp.value))
       }.values.toList
 
