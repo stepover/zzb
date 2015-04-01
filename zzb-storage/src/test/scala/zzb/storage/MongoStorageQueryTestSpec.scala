@@ -31,7 +31,7 @@ class MongoStorageQueryTestSpec extends FlatSpec with MongoStorageBehaviors with
       mongo{
       |usedb= ["mydb"]
       |mydb{
-      | uri="mongodb://10.68.3.157:27017/"
+      | uri="mongodb://ec2-54-223-166-109.cn-north-1.compute.amazonaws.com.cn:27017/"
       | db ="mydb"
       |}
       }
@@ -45,11 +45,11 @@ class MongoStorageQueryTestSpec extends FlatSpec with MongoStorageBehaviors with
 //    Mongos.closeAllDB()
   }
 
-//  "MongoDriver " should behave like mongoStorageQuery(new MongoDriver[String, ID.type, HomeInfo.type](delay = 100) {
-//    override val docType = HomeInfo
-//    override val dbname = "mydb"
-//    MongoClient("10.68.3.157", 27017)("mydb")
-//  })
+  "MongoDriver " should behave like mongoStorageQuery(new MongoDriver[String, ID.type, HomeInfo.type](delay = 100) {
+    override val docType = HomeInfo
+    override val dbname = "mydb"
+    MongoClient("ec2-54-223-166-109.cn-north-1.compute.amazonaws.com.cn", 27017)("mydb")
+  })
 
 
 }
