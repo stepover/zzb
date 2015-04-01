@@ -1,11 +1,13 @@
 package zzb.storage.dirvers
 
+import akka.event.LoggingAdapter
 import com.mongodb.casbah.Imports
 import com.mongodb.util.JSON
 import spray.json._
 import zzb.datatype._
 import zzb.db.MongoAccess
 import zzb.storage.{DBObjectHelper, Driver, TStorable}
+import zzb.util.log.Clock._
 
 
 /**
@@ -13,9 +15,11 @@ import zzb.storage.{DBObjectHelper, Driver, TStorable}
  * mongodb数据驱动，主要用于测试
  * @param delay 读写操作延迟的毫秒数，默认为0，不延迟
  */
-abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] with MongoAccess with DBObjectHelper  {
+abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] with MongoAccess with DBObjectHelper {
 
   import com.mongodb.casbah.Imports._
+
+  implicit def theLog: LoggingAdapter = logger
 
   val del_flag = "sys_del_flag"
 
@@ -42,9 +46,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     val jsonString = pack.toJsValue.toString()
     val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
     val uuid_key = MongoDBObject(keyCode -> key.toString)
-    val cnt = collection(_.getCount(uuid_key))
-    if (cnt == 0) collection(_.insert(dbObject))
-    else collection(_.update(uuid_key, dbObject))
+    val cnt = clocking("put时先查询是否已存在{}={}的记录", keyCode, key.toString)(collection(_.getCount(uuid_key)))
+    if (cnt == 0) clocking(s"put时插入{}={}的记录", keyCode, key.toString)(collection(_.insert(dbObject)))
+    else clocking(s"put时更新{}={}的记录", keyCode, key.toString)(collection(_.update(uuid_key, dbObject)))
     if (!replace) saveHistory(pack)
     pack
   }
@@ -58,7 +62,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    */
   def load(key: K, tag: String): Option[T#Pack] = {
     val uuid_key = MongoDBObject(keyCode -> key.toString, versionTag -> tag)
-    collection(c => convertDBObject(c.findOne(uuid_key)))
+    clocking(s"load加载{}={}的记录", keyCode, key.toString)(collection(c => convertDBObject(c.findOne(uuid_key))))
   }
 
   /**
@@ -70,10 +74,10 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   def load(key: K, verNum: Int): Option[T#Pack] = {
     if (verNum < 0) {
       val uuid_key = MongoDBObject(keyCode -> key.toString)
-      collection(c => convertDBObject(c.findOne(uuid_key)))
+      clocking(s"load加载{}={}的最新版本记录", keyCode, key.toString)(collection(c => convertDBObject(c.findOne(uuid_key))))
     } else {
       val uuid_key = MongoDBObject(keyCode -> key.toString, versionCode -> verNum)
-      historyCollection(c => convertDBObject(c.findOne(uuid_key)))
+      clocking(s"load加载{}={}的历史版本{}记录", keyCode, key.toString, verNum)(historyCollection(c => convertDBObject(c.findOne(uuid_key))))
     }
   }
 
@@ -113,7 +117,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   def delete(key: K, justMarkDelete: Boolean): Int = {
     val uuid_key = MongoDBObject(keyCode -> key.toString)
     val data_key = MongoDBObject(keyCode -> "1", del_flag -> "1")
-    collection { c =>
+    clocking(s"delete删除{}={}的记录，标记：{}", keyCode, key.toString, justMarkDelete)(collection { c =>
       c.findOne(uuid_key, data_key).fold(0) { v =>
         doSetDelFlag(key)
         if (!justMarkDelete) {
@@ -122,6 +126,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
         1
       }
     }
+    )
   }
 
   /**
@@ -135,7 +140,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     val uuid_key = MongoDBObject(keyCode -> key.toString)
     val data_key = MongoDBObject(VersionInfo.t_code_ -> "1")
     //    val data_order = MongoDBObject(versionCode -> "desc")
-    val version_docs = historyCollection(_.find(uuid_key, data_key))
+    val version_docs = clocking(s"versions获取{}={}的历史版本", keyCode, key.toString)(historyCollection(_.find(uuid_key, data_key)))
 
     import spray.json._
     version_docs.map {
@@ -149,7 +154,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   def currentVersion(key: K): Option[VersionInfo.Pack] = {
     val uuid_key = MongoDBObject(keyCode -> key.toString)
     val data_key = MongoDBObject(VersionInfo.t_code_ -> "1")
-    collection(_.findOne(uuid_key, data_key)) match {
+    clocking(s"currentVersion获取{}={}的当前版本", keyCode, key.toString)(collection(_.findOne(uuid_key, data_key)) match {
       case None =>
         val seq_versions = versions(key)
         logger.debug(s"currentVersion doc ${key.toString},found None,seq_versions:${seq_versions.length}")
@@ -159,14 +164,14 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
         val jsonString = JSON.serialize(v.get(VersionInfo.t_code_))
         val jsonObject: JsValue = JsonParser(jsonString)
         Some(VersionInfo.fromJsValue(jsonObject))
-    }
+    })
   }
 
   /**
    * 根据路径、值查询doc列表
    **/
   def find(params: (StructPath, Any)*): List[T#Pack] = {
-    collection { col =>
+    clocking(s"find根据路径、值查询doc列表")(collection { col =>
       val p = params.foldLeft(MongoDBObject()) { (result, param) =>
         result ++ (param._1.relativeStr.drop(1).replace("/", ".") -> param._2)
       }
@@ -175,7 +180,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
         v.removeField(del_flag)
         docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
       }.toList
-    }
+    })
   }
 
   override def query(params: (StructPath, Any, String)*): List[T#Pack] = {
@@ -194,13 +199,13 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @return
    */
   override def query(dbObjcet: Imports.DBObject): List[T#Pack] = {
-    collection { col =>
+    clocking(s"query根据查询条件集去查讯数据库取回列表")(collection { col =>
       col.find(dbObjcet).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
         docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
       }.toList
-    }
+    })
   }
 
   /**
@@ -209,10 +214,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @return
    */
   override def count(dbObjcet: Imports.DBObject): Int = {
-    collection { col =>
-
+    clocking(s"count根据查询条件集去查讯数据库符合的条数")(collection { col =>
       col.count(dbObjcet)
-    }
+    })
   }
 
   /**
@@ -223,28 +227,28 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @return
    */
   override def queryWithLimit(dbObjcet: Imports.DBObject, limit: Int = 10, skip: Int = 0): List[T#Pack] = {
-    collection { col =>
+    clocking(s"queryWithLimit")(collection { col =>
       col.find(dbObjcet).limit(limit).skip(skip).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
         docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
       }.toList
-    }
+    })
   }
 
   override def queryWithLimitSort(dbObjcet: Imports.DBObject, limit: Int = 10, skip: Int = 0, sort: Imports.DBObject): List[T#Pack] = {
-    collection { col =>
+    clocking(s"queryWithLimitSort")(collection { col =>
       col.find(dbObjcet).sort(sort).limit(limit).skip(skip).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
         docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
       }.toList
-    }
+    })
   }
 
 
   private def historyCollection[M](f: MongoCollection => M) = {
-    db(dbname) { d =>
+    db(dbname){d=>
       f(d(docType.t_code_ + "_history"))
     }
   }
@@ -273,7 +277,7 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   private def saveHistory(pack: T#Pack): T#Pack = {
     val jsonString = pack.toJsValue.toString()
     val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
-    historyCollection(_.insert(dbObject))
+    clocking(s"持久化${keyCode}=${dbObject.getOrElse(keyCode, "")}历史")(historyCollection(_.insert(dbObject)))
     pack
   }
 
