@@ -3,16 +3,27 @@
 
 1.数据类型操作
 -------------
+例如类型：
+    
+    object UserInfo extends TStruct with Versioned {   
+      val name  Field(TString("name","姓名")
+      val age = Field(TInt("age","年龄")
+      val title  Field(TString("title","职位")
+      val scalaAge = Field(TInt("scalaAge","Scala使用时间")
+      val house = Field(TString("house","别墅地址")
+      val memo = Field(TString("memo","备注"))
+    }
+  
   a) := 操作符支持更灵活的表达方案
 
       val nullString :String = null
-      val userInfo1 = UserInfo(
-        userName := "Simon",                //基础类型赋值
-        userTitle := Some("Scala Haker"),   //也可以是Option
-        userAge := 40,
+      val user1 = UserInfo(
+        name := "Simon",                //基础类型赋值
+        title := Some("Scala Haker"),   //也可以是Option
+        age := 40,
         scalaAge := Some(2),
-        house := None,                      //None 不会被赋值到数据中
-        memo := nullString                  //可以是 null ，不会被赋值到数据中
+        house := None,                  //None 不会被赋值到数据中
+        memo := nullString              //可以是 null ，不会被赋值到数据中
       )
 
  b) <~~ 操作符支持更灵活的表达方案
@@ -26,7 +37,17 @@
        val b:B.Pack = a.to(B)  //将数据类型A的实例转换成B的实例
 
    完整的例子参见[代码](https://github.com/stepover/zzb/blob/0.1.2/zzb-datatype/src/test/scala/zzb/datatype/StructTransTest.scala)
-
+   
+ d) TStruct#Pack 实例的数据字段修改机制变更
+    
+  原先我们可以使用 TStruct#Pack 的apply函数修改其中一个或多个字段的值并返回一个新的 Pack 实例。如：
+    
+    val user2 = user1(name:="jack",age := 30)
+    
+  现在该改为使用 alter 函数，如：
+    
+    val user2 = user1.alter(name:="jack",age := 30)
+ 
 2.改变 zzb-storage 版本控制机制
 -----------------------------
   原来每次存储动作都会新建一个版本实例，导致无效版本数量大量增长。
