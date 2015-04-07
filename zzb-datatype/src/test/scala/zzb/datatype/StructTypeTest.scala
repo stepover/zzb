@@ -275,6 +275,13 @@ class StructTypeTest extends WordSpec with MustMatchers {
       val pf = HomeInfo.me.userInfo().userAge().path
 
       home1(pf.map(p => p()).reverse.head) mustBe Some(UserAge(39))
+
+      val home2 = HomeInfo(
+        CarInfo(CarLicense("京GNR110"), CarVin("1234567"))
+      )
+
+      home2(HomeInfo.userInfo().userAge()) mustBe None
+
     }
 
     ":= style value set " in {
