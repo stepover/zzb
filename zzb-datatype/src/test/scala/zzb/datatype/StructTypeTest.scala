@@ -312,10 +312,12 @@ class StructTypeTest extends WordSpec with MustMatchers {
       val userInfoA = UserInfo(
         userName := Some("Simon"),
         userAge := TInt(30),
+        blood := 30,
         memo := nullString
       )
 
       userInfoA(userAge).get.value mustBe 30
+      //userInfoA(blood) mustBe None
 
       val nullIdx: Integer = null
 
