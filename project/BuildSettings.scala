@@ -41,8 +41,18 @@ object BuildSettings {
 
   )
 
+//  lazy val releaseSetting = seq(
+//    repository in bintray := "release"
+//  )
+
   lazy val releaseSetting = seq(
-    repository in bintray := "release"
+    // publishing
+    crossPaths := true,
+    publishTo :=
+      Some("zzb snapshot" at {
+        // public uri is repo.spray.io, we use an SSH tunnel to the nexus here
+        "s3://s3.cn-north-1.amazonaws.com.cn/aws.baoxian.com/release/"
+      })
   )
 
   lazy val snapshotSetting = seq(
@@ -95,9 +105,7 @@ object BuildSettings {
         }
       )
 
-  lazy val zzbModuleSettings = if (bintray_user.size > 0 && !VERSION.trim.endsWith("SNAPSHOT"))
-    zzbModuleSettingsBase ++ bintraySettings
-  else zzbModuleSettingsBase
+  lazy val zzbModuleSettings =  zzbModuleSettingsBase
 
   lazy val noPublishing = seq(
     publish :=(),
