@@ -1,6 +1,5 @@
 package zzb.storage
 
-import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap
 import zzb.datatype.DataType
 
 import scala.concurrent.stm._

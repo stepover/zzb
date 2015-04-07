@@ -78,7 +78,7 @@ object Build extends Build {
     .dependsOn(zzbDatatype,zzbUtil)
     .settings(zzbModuleMultiJvmSettings: _*)
     .settings(libraryDependencies ++=
-    compile(nScalaTime, sprayRouting, akkaActor, akkaRemote, sprayJson, sprayCaching,scalaReflect, quasiQuotes) ++
+    compile(nScalaTime, sprayRouting, akkaActor, akkaRemote, sprayJson,scalaReflect, quasiQuotes) ++
       test(scalatest, specs2, akkaTestKit, sprayTestkit, akkaRemoteTest) ++
       runtime(akkaSlf4j,logback)
     ) configs MultiJvm
