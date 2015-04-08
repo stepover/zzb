@@ -4,11 +4,9 @@ package zzb.datatype
 
 import java.io._
 
-import org.scalatest.WordSpec
-import org.scalatest.MustMatchers
-import testuse._
+import org.scalatest.{MustMatchers, WordSpec}
 import spray.json.JsonParser
-import zzb.datatype
+import zzb.datatype.testuse._
 
 
 class StructTypeTest extends WordSpec with MustMatchers {
@@ -127,7 +125,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
       userInfo3(UserAge) must be(None)
 
 
-      val u0 = UserInfo() <~~ List(UserInfo.userName()("simon"),UserAge(34))
+      val u0 = UserInfo() <~~ List(UserInfo.userName()("simon"), UserAge(34))
       u0(UserInfo.userName()).get.value mustBe "simon"
       u0(UserInfo.userAge()).get.value mustBe 34
     }
@@ -136,12 +134,12 @@ class StructTypeTest extends WordSpec with MustMatchers {
       import Address._
       import UserInfo._
 
-      val add1 = Address(country := "china",province := "aaa")
-      val add2 = Address(country := "china",province := "bbb",city := "guangzhou")
+      val add1 = Address(country := "china", province := "aaa")
+      val add2 = Address(country := "china", province := "bbb", city := "guangzhou")
 
-      val userInfo1 = UserInfo(UserName("Simon"), UserAge(38),add1,misc := Map("water" -> 100, "price" -> 23.1, "date" -> "1978-12-03 06:32:33"))
+      val userInfo1 = UserInfo(UserName("Simon"), UserAge(38), add1, misc := Map("water" -> 100, "price" -> 23.1, "date" -> "1978-12-03 06:32:33"))
 
-      val userInfo2 = UserInfo(UserName("Jack"),add2,misc := Map("food" -> 500))
+      val userInfo2 = UserInfo(UserName("Jack"), add2, misc := Map("food" -> 500))
 
       val userInfo3 = userInfo1 ->> userInfo2
       val userInfo4 = userInfo2 ->> userInfo1
@@ -210,7 +208,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
       val uInfo: Option[UserInfo.Pack] = home.field(UserInfo)
 
-      uInfo.get(userAge())  must equal(Some(UserAge(38)))
+      uInfo.get(userAge()) must equal(Some(UserAge(38)))
 
       val fieldPath: List[() => DataType[Any]] =
         List(HomeInfo.userInfo, HomeInfo.userInfo().userAge)
@@ -219,7 +217,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
       val uInfoValue0 = uInfo.get
 
-      val uInfoValue1 = uInfoValue0 <~:  UserAge(40)
+      val uInfoValue1 = uInfoValue0 <~: UserAge(40)
 
       uInfoValue1(UserAge).get.value mustBe 40
 
@@ -246,7 +244,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
     "通过字段路径进行赋值动作" in {
 
-      def setDocField(oldDoc:  ValuePack[Any],
+      def setDocField(oldDoc: ValuePack[Any],
                       fieldPath: List[() => DataType[Any]],
                       fieldValue: ValuePack[Any]): ValuePack[Any] = {
         fieldPath match {
@@ -254,7 +252,7 @@ class StructTypeTest extends WordSpec with MustMatchers {
           case head :: tail =>
             oldDoc(head()) match {
               case None => oldDoc
-              case Some(d) => oldDoc <~: setDocField( d, tail, fieldValue)
+              case Some(d) => oldDoc <~: setDocField(d, tail, fieldValue)
             }
 
         }
@@ -265,31 +263,42 @@ class StructTypeTest extends WordSpec with MustMatchers {
         CarInfo(CarLicense("京GNR110"), CarVin("1234567"))
       )
 
-      val home1 = setDocField( home0,
-        List(HomeInfo.userInfo, HomeInfo.userInfo().userAge),UserAge(39))
+      val home1 = setDocField(home0,
+        List(HomeInfo.userInfo, HomeInfo.userInfo().userAge), UserAge(39))
 
       home1(UserInfo)(UserAge) must equal(Some(UserAge(39)))
 
-      val pathStr :String = HomeInfo.me.userInfo().userAge().path
+      val pathStr: String = HomeInfo.me.userInfo().userAge().path
       pathStr mustBe "/homeInfo/userInfo/userAge"
       val pf = HomeInfo.me.userInfo().userAge().path
 
       home1(pf.map(p => p()).reverse.head) mustBe Some(UserAge(39))
+
+      val home2 = HomeInfo(
+        CarInfo(CarLicense("京GNR110"), CarVin("1234567"))
+      )
+
+      home2(HomeInfo.userInfo().userAge()) mustBe None
+
     }
 
     ":= style value set " in {
       import UserInfo._
 
-      val nullString :String = null
+      val nullString: String = null
+      val nullAge: Integer = null
       val userInfo1 = UserInfo(
         userName := Some("Simon"),
         userAge := Some(38),
-        driverAge := 10,
+        driverAge := nullAge,
+        blood := 3,
         memo := nullString
       )
 
       userInfo1(UserName) must equal(Some(UserName("Simon")))
-
+      userInfo1(driverAge) mustBe None
+      userInfo1(memo) mustBe None
+      userInfo1(blood).get.value.idx mustBe 3
       //      val userInfo2 = userInfo1 <~ (blood := 1)
       //
       //      userInfo2(blood) must equal(Some(BloodType(1)))
@@ -303,18 +312,28 @@ class StructTypeTest extends WordSpec with MustMatchers {
       val userInfoA = UserInfo(
         userName := Some("Simon"),
         userAge := TInt(30),
+        blood := 30,
         memo := nullString
       )
 
       userInfoA(userAge).get.value mustBe 30
+      //userInfoA(blood) mustBe None
+
+      val nullIdx: Integer = null
 
       val userInfoB = UserInfo(
         userName := Some("Simon"),
         driverAge := userInfoA(userAge),
+        userAge := Some(Integer.parseInt("22")),
+        blood := nullIdx,
         memo := nullString
       )
 
       userInfoB(driverAge).get.value mustBe 30
+
+      userInfoB(userAge).get.value mustBe 22
+
+      userInfoB(blood).get.value.idx mustBe 1 //使用缺省值
 
     }
 
@@ -333,16 +352,16 @@ class StructTypeTest extends WordSpec with MustMatchers {
 
       w1(hours).get.value must equal(5)
 
-//      intercept[RequiredFieldNotSetException] {
-//        val w2 = Work(hours := 5)
-//      }
+      //      intercept[RequiredFieldNotSetException] {
+      //        val w2 = Work(hours := 5)
+      //      }
 
       val w2 = Work(hours := 5)
       w2.validate.head mustBe "fields [jobName] is required."
 
       w2.isOnlyRequireFields mustBe false
 
-      val w3 = Work( jobName := "杀 10 匹野狼")
+      val w3 = Work(jobName := "杀 10 匹野狼")
 
       w3.isOnlyRequireFields mustBe true
     }

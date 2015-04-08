@@ -163,32 +163,39 @@ package object datatype {
     def :=(value: DT#Pack) = Some(field().apply(value.value))
   }
 
+  implicit class PrimitiveTrans[VT,OT,DT<:TMono[VT]]( field: () => DT)(implicit m: ClassTag[VT],o: ClassTag[VT],f:OT => VT){
+    def :=(value: VT) = Some(field().apply(value))
+    def :=(value: OT) = Option(value).map(field().apply(_))
+    def :=(value: Option[_]) = value match {
+      case Some(v) if  boxedType(m.runtimeClass).isInstance(v)  => Option(v.asInstanceOf[VT]).map(field().apply)
+      case Some(v:DT#Pack)  => Option(v.value).map(field().apply)
+      case _ => None
+    }
+    def :=(value: DT#Pack) = Some(field().apply(value.value))
+  }
+
   implicit class TStringFieldTrans(field: () => TString) extends MonoTrans[String,TString](field)
 
-  implicit class TIntFieldTrans(field: () => TInt) extends MonoTrans[Int,TInt](field)
+  implicit class TIntFieldTrans(field: () => TInt) extends PrimitiveTrans[Int,Integer,TInt](field)
 
-  implicit class TLongFieldTrans(field: () => TLong) extends MonoTrans[Long,TLong](field)
+  implicit class TLongFieldTrans(field: () => TLong) extends PrimitiveTrans[Long,java.lang.Long,TLong](field)
 
-  implicit class TByteFieldTrans(field: () => TByte) extends MonoTrans[Byte,TByte](field)
+  implicit class TByteFieldTrans(field: () => TByte) extends PrimitiveTrans[Byte,java.lang.Byte,TByte](field)
 
-  implicit class TShortFieldTrans(field: () => TShort) extends MonoTrans[Short,TShort](field)
+  implicit class TShortFieldTrans(field: () => TShort) extends PrimitiveTrans[Short,java.lang.Short,TShort](field)
 
-  implicit class TFloatFieldTrans(field: () => TFloat) extends MonoTrans[Float,TFloat](field)
+  implicit class TFloatFieldTrans(field: () => TFloat) extends PrimitiveTrans[Float,java.lang.Float,TFloat](field)
 
-  implicit class TDoubleFieldTrans(field: () => TDouble) extends MonoTrans[Double,TDouble](field)
+  implicit class TDoubleFieldTrans(field: () => TDouble) extends PrimitiveTrans[Double,java.lang.Double,TDouble](field)
 
-  implicit class TBooleanFieldTrans(field: () => TBoolean) extends MonoTrans[Boolean,TBoolean](field)
+  implicit class TBooleanFieldTrans(field: () => TBoolean) extends PrimitiveTrans[Boolean,java.lang.Boolean,TBoolean](field)
 
   implicit class TBigDecimalFieldTrans(field: () => TBigDecimal) extends MonoTrans[BigDecimal,TBigDecimal](field)
 
-  implicit class TEnumFieldTrans[DT<:TEnum](field: () => DT) {
-    //def :=(value: VT) = Some(field().apply(value))
-    def :=(value: Option[DT#Pack]) = value match {
-      //case Some(v) if boxedType(m.runtimeClass).isInstance(v)  => Some(field().apply(v.asInstanceOf[VT]))
-      case Some(v:DT#Pack) if v.value != null  => Some(field().apply(v.value))
-      case _ => None
-    }
-    //def :=(value: DT#Pack) = Some(field().apply(value.value))
+  implicit class TEnumFieldTrans[DT<:TEnum](field: () => DT)(implicit f :Int => DT#Pack) {
+
+    def :=(idx: Int) = Some(f(idx))
+    def :=(idx: Integer) = Option(idx).map(i => f(i.intValue()))
   }
 
   import com.github.nscala_time.time.Imports._
