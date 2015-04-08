@@ -85,7 +85,7 @@ class MacroTypeTest extends WordSpec with MustMatchers {
 
       userInfo(UserInfo.userName()).get.value  must equal("Simon")
 
-      userInfo("user.name") must equal(Some(UserInfo.userName()("Simon")))
+      //userInfo.apply("user.name") must equal(Some(UserInfo.userName()("Simon")))
 
 //      userInfo(NoThis) must be(None)
     }
@@ -100,7 +100,7 @@ class MacroTypeTest extends WordSpec with MustMatchers {
 
       userInfo(birthDay()).get.toString  must equal("1999-11-22 00:00:00")
 
-      userInfo("user.name") must equal(Some(userName()("Simon")))
+      //userInfo("user.name") must equal(Some(userName()("Simon")))
 
       userInfo(isMale()).get.value must equal(true)
       userInfo(isMale()).get.toString must equal("true")
@@ -173,7 +173,7 @@ class MacroTypeTest extends WordSpec with MustMatchers {
     "construct from other" in {
       import UserInfo._
       val userInfo1 = UserInfo(userName()("Simon"), userAge()(38))
-      val userInfo2 = UserInfo(userInfo1.value)
+      val userInfo2 = UserInfo.use(userInfo1.value)
 
       userInfo2(userAge()) must equal(Some(userAge()(38)))
       userInfo2(userName()) must equal(Some(userName()("Simon")))

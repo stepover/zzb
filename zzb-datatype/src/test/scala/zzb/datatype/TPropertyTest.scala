@@ -43,10 +43,6 @@ class TPropertyTest extends WordSpec with MustMatchers {
       val u0: UserInfo.Pack = UserInfo(userName := "simon")
       u0.misc.size mustBe 0
     }
-
   }
-
-
-
 }
 

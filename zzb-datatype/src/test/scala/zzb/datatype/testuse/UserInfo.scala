@@ -48,7 +48,7 @@ object Address extends TStruct{
  */
 object UserInfo extends TStruct with Versioned {
 
-  val userName = Field(UserName,isRequired = true)
+  val userName: () => UserName.type = Field(UserName,isRequired = true)
   val userAge = Field(UserAge)
   val driverAge = Field(DriverAge)
   val userHeight = Field(UserHeight)
