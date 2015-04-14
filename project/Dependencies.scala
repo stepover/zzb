@@ -60,7 +60,7 @@ object Dependencies {
 
   val squeryl = "org.squeryl" %% "squeryl" % "0.9.6-RC2"
   val mysqlDriver = "mysql" % "mysql-connector-java" % "5.1.26"
-  val casbah = "org.mongodb" %% "casbah" % "2.7.4"
+  val casbah = "org.mongodb" %% "casbah" % "2.8.0"
   val c3p0 = "c3p0" % "c3p0" % "0.9.1.2"
   val bonecp= "com.jolbox" % "bonecp" % "0.8.0.RELEASE" excludeAll(excludeJars: _*)
   val sclick = "com.typesafe.slick" %% "slick-codegen" % "2.1.0"
@@ -68,7 +68,7 @@ object Dependencies {
   val h2 = "com.h2database" % "h2" % "1.2.127"
 
   val config = "com.typesafe" % "config" % "1.2.1"
-  val nScalaTime = "com.github.nscala-time" %% "nscala-time" % "1.0.0"
+  val nScalaTime = "com.github.nscala-time" %% "nscala-time" % "1.8.0"
   val scalaStm = "org.scala-stm" %% "scala-stm" % "0.7"
 
   val smackCore = "org.igniterealtime.smack" % "smack-core" % "4.0.2"

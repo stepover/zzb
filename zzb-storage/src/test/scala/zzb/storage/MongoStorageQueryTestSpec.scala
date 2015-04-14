@@ -37,19 +37,19 @@ class MongoStorageQueryTestSpec extends FlatSpec with MongoStorageBehaviors with
       }
     """.stripMargin
 
-  override protected def beforeAll() = {
-    Mongos.openDB("mydb", ConfigFactory.parseString(testConfigSource).getConfig("mongo.mydb"))
-  }
+//  override protected def beforeAll() = {
+//    Mongos.openDB("mydb", ConfigFactory.parseString(testConfigSource).getConfig("mongo.mydb"))
+//  }
 
-  override protected def afterAll() = {
-//    Mongos.closeAllDB()
-  }
+//  override protected def afterAll() = {
+////    Mongos.closeAllDB()
+//  }
 
-  "MongoDriver " should behave like mongoStorageQuery(new MongoDriver[String, ID.type, HomeInfo.type](delay = 100) {
-    override val docType = HomeInfo
-    override val dbname = "mydb"
-    MongoClient("ec2-54-223-166-109.cn-north-1.compute.amazonaws.com.cn", 27017)("mydb")
-  })
+//  "MongoDriver " should behave like mongoStorageQuery(new MongoDriver[String, ID.type, HomeInfo.type](delay = 100) {
+//    override val docType = HomeInfo
+//    override val dbname = "mydb"
+//    MongoClient("ec2-54-223-166-109.cn-north-1.compute.amazonaws.com.cn", 27017)("mydb")
+//  })
 
 
 }

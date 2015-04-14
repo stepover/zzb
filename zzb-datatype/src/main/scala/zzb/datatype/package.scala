@@ -204,12 +204,12 @@ package object datatype {
 
   private val datePatterns = "YYYY-MM-dd HH:mm:ss" ::
     "YYYY-MM-dd" ::
+    "YYYY-MM-dd HH:mm:ss.SSS" ::
     "HH:mm:ss" ::
     "HH:mm:ss.SSSZZ" ::
     "HH:mm:ssZZ" ::
     "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
     "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-    "YYYY-MM-dd HH:mm:ss.SSS" ::
     Nil
 
   private def tryParseDate(str: String)(res: Option[DateTime], pt: String) = {
