@@ -10,7 +10,7 @@ import bintray.Plugin._
 import bintray.Keys._
 
 object BuildSettings {
-  val VERSION = "0.1.2-RC3"
+  val VERSION = "0.1.2-RC4"
 
   lazy val basicSettings = seq(
     version := NightlyBuildSupport.buildVersion(VERSION),
@@ -20,7 +20,7 @@ object BuildSettings {
     description := "Restful framework base on Scala,Akka,Spary",
     startYear := Some(2013),
     licenses +=("MIT", url("http://opensource.org/licenses/MIT")),
-    scalaVersion := "2.10.4",
+    scalaVersion := "2.10.5",
     publishMavenStyle := true,
     resolvers ++= Dependencies.resolutionRepos,
     scalacOptions := Seq(

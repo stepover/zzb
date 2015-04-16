@@ -4,9 +4,10 @@ import sbt.Keys._
 object Dependencies {
 
   val resolutionRepos = Seq(
+        "Spray Repository" at "http://repo.spray.io/",
     "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
-    "Sonatype snapshots" at "https://oss.sonatype.org/content/repositories/releases/",
-    "Spray Repository" at "http://repo.spray.io/"
+    "Sonatype snapshots" at "https://oss.sonatype.org/content/repositories/releases/"
+
   )
 
   val excludeJars = ExclusionRule(organization = "com.typesafe.akka") ::
@@ -23,8 +24,8 @@ object Dependencies {
     ExclusionRule(organization = "net.sf.ehcache") ::
     Nil
 
-  val akkaVersion = "2.3.8"
-  val sprayVersion = "1.3.1"
+  val akkaVersion = "2.3.9"
+  val sprayVersion = "1.3.3"
 
   def compile(deps: ModuleID*): Seq[ModuleID] = deps map (_ % "compile")
 
@@ -36,7 +37,7 @@ object Dependencies {
 
   def container(deps: ModuleID*): Seq[ModuleID] = deps map (_ % "container")
 
-  val scalaReflect = "org.scala-lang" % "scala-reflect" % "2.10.4"
+  val scalaReflect = "org.scala-lang" % "scala-reflect" % "2.10.5"
   val quasiQuotes = "org.scalamacros" %% "quasiquotes" % "2.0.0" cross CrossVersion.binary
   val akkaActor = "com.typesafe.akka" %% "akka-actor" % akkaVersion
   val akkaSlf4j = "com.typesafe.akka" %% "akka-slf4j" % akkaVersion
@@ -44,14 +45,14 @@ object Dependencies {
   val akkaTestKit = "com.typesafe.akka" %% "akka-testkit" % akkaVersion
   val akkaRemoteTest = "com.typesafe.akka" %% "akka-remote-tests" % akkaVersion
   val akkaRemote = "com.typesafe.akka" %% "akka-remote" % akkaVersion
-  val sprayCan = "io.spray" % "spray-can" % sprayVersion
-  val sprayRouting = "io.spray" % "spray-routing" % sprayVersion
-  val sprayHttp = "io.spray" % "spray-http" % sprayVersion
-  val sprayJson = "io.spray" %% "spray-json" % "1.2.6"
-  val sprayClient = "io.spray" % "spray-client" % sprayVersion
-  val sprayUtil = "io.spray" % "spray-util" % sprayVersion
-  val sprayCaching = "io.spray" % "spray-caching" % sprayVersion
-  val sprayTestkit = "io.spray" % "spray-testkit" % sprayVersion
+  val sprayCan = "io.spray" %% "spray-can" % sprayVersion
+  val sprayRouting = "io.spray" %% "spray-routing" % sprayVersion
+  val sprayHttp = "io.spray" %% "spray-http" % sprayVersion
+  val sprayJson = "io.spray" %% "spray-json" % "1.3.1"
+  val sprayClient = "io.spray" %% "spray-client" % sprayVersion
+  val sprayUtil = "io.spray" %% "spray-util" % sprayVersion
+  val sprayCaching = "io.spray" %% "spray-caching" % sprayVersion
+  val sprayTestkit = "io.spray" %% "spray-testkit" % sprayVersion
   val scalaloggingSlf4j = "com.typesafe" %% "scalalogging-slf4j" % "1.1.0" excludeAll(excludeJars: _*)
   val shapeless = "com.chuusai" %% "shapeless"    % "1.2.4"
   val scalatest = "org.scalatest" %% "scalatest" % "2.2.0-RC1"
