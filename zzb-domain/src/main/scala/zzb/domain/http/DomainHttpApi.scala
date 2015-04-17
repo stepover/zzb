@@ -1,18 +1,17 @@
 package zzb.domain.http
 
 import spray.http.StatusCodes
+import spray.routing.Route
 import zzb.datatype._
-import zzb.storage.TStorable
-import spray.routing.{Directives, Route}
-import zzb.rest.http2akka.{HttpApi, Http2AkkaDirectives}
 import zzb.domain._
-import spray.httpx.SprayJsonSupport._
+import zzb.rest.http2akka.HttpApi
+import zzb.storage.TStorable
 
 /**
  * Created by Simon on 2014/4/23
  */
 trait DomainHttpApi[K, KT <: DataType[K], T <: TStorable[K, KT]]
-  extends DomainHttpDirectives with HttpApi {
+  extends DomainHttpDirectives with HttpApi with spray.httpx.SprayJsonSupport {
 
   val domainType: T
 
