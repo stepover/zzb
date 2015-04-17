@@ -87,12 +87,13 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
    * @param ec 执行上下文
    * @return  查询到的数据(Future)
    */
-  def load(key: K, ver: Int = -1)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = {
+  def load(key: K, ver: Int = -1,forceReload:Boolean = false)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = {
 
     val promise = Promise[Option[T#Pack]]()
 
     if (ver < 0) {
-      //寻找最近版本，使用缓存
+      //寻找最近版本
+      if(forceReload) inCache.remove(key)
       val fv: Future[T#Pack] = inCache.get(key) match {
         case Some(f) => f
         case None => inCache.apply(key, () => Future {
@@ -375,7 +376,7 @@ class Storage[K, KT <: DataType[K], T <: TStorable[K, KT]](val driver: Driver[K,
 }
 
 class SpecificStorage[K, KT <: DataType[K], T <: TStorable[K, KT]](val key: K, val storage: Storage[K, KT, T]) {
-  def apply(ver: Int = -1)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = storage.load(key, ver)
+  def apply(ver: Int = -1,forceReload:Boolean = false)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = storage.load(key, ver,forceReload)
 
   def apply(tag: String)(implicit ec: ExecutionContext): Future[Option[T#Pack]] = storage.load(key, tag)
 
