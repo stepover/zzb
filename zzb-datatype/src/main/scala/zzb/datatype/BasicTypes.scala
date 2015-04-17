@@ -191,7 +191,7 @@ object TDateTime extends TDateTime {
 
   val init: Option[DateTime] = None
 
-  def string2DateTime(dateTimeStr: String)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss"): Option[DateTime] = {
+  def string2DateTime(dateTimeStr: String)(implicit pattern: String = ""): Option[DateTime] = {
 
     def tryParse(res: Option[DateTime], pf: DateTimeFormatter) = {
       if (res.isDefined) res
@@ -201,8 +201,9 @@ object TDateTime extends TDateTime {
         case ex: Throwable => None
       }
     }
+    val pts = if (pattern.length > 0) DateTimeFormat.forPattern(pattern) :: defaultPatterns else defaultPatterns
 
-    (init /: (DateTimeFormat.forPattern(pattern) :: defaultPatterns))(tryParse)
+    (init /: pts)(tryParse)
   }
 
    def date2String(date: DateTime)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss") = date.toString(pattern)
