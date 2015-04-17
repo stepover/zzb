@@ -3,6 +3,8 @@ package zzb.datatype
 import java.util.concurrent.atomic.AtomicReference
 
 import com.github.nscala_time.time.Imports
+import org.joda.time.format.DateTimeFormatter
+
 //import spray.json.DefaultJsonProtocol._
 import BasicJsonFormats._
 import spray.json._
@@ -176,32 +178,31 @@ object TDateTime extends TDateTime {
     override lazy val t_code_ = code
   }
 
+  val defaultPatterns = (
+    "YYYY-MM-dd HH:mm:ss" ::
+    "YYYY-MM-dd HH:mm:ss.SSS" ::
+    "YYYY-MM-dd" ::
+    "HH:mm:ss" ::
+    "HH:mm:ss.SSSZZ" ::
+    "HH:mm:ssZZ" ::
+    "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
+    "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
+    Nil).map(DateTimeFormat.forPattern)
+
+  val init: Option[DateTime] = None
+
   def string2DateTime(dateTimeStr: String)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss"): Option[DateTime] = {
 
-    val patterns = pattern ::
-      "YYYY-MM-dd HH:mm:ss" ::
-      "YYYY-MM-dd HH:mm:ss.SSS" ::
-      "YYYY-MM-dd" ::
-      "HH:mm:ss" ::
-      "HH:mm:ss.SSSZZ" ::
-      "HH:mm:ssZZ" ::
-      "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-      "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-      Nil
-
-    val init: Option[DateTime] = None
-
-
-    def tryParse(res: Option[DateTime], pt: String) = {
+    def tryParse(res: Option[DateTime], pf: DateTimeFormatter) = {
       if (res.isDefined) res
       else try {
-        Some(DateTimeFormat.forPattern(pt).parseDateTime(dateTimeStr))
+        Some(pf.parseDateTime(dateTimeStr))
       } catch {
         case ex: Throwable => None
       }
     }
 
-    (init /: patterns)(tryParse)
+    (init /: (DateTimeFormat.forPattern(pattern) :: defaultPatterns))(tryParse)
   }
 
    def date2String(date: DateTime)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss") = date.toString(pattern)
