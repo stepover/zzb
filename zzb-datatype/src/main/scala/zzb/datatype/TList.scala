@@ -217,7 +217,7 @@ trait TList[T] extends DataType[List[T]] {
 
     def validate: List[String] = validate(validators)
 
-    override def toJsValue: JsValue = JsArray(value.map(_.toJson))
+    override def toJsValue: JsValue = JsArray(value.map(_.toJson):_*)
 
   }
 
