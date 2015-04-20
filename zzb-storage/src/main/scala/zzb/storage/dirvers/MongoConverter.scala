@@ -44,12 +44,7 @@ object MongoConverter {
         lv
       case (dbList: BasicDBList, d: TList[AnyRef]) =>
         val itemClass = d.lm.runtimeClass
-        val iv = dbList.asScala.toList.map {
-          case item: DBObject =>
-            ???
-          case item =>
-            item
-        }
+        val iv = dbList.asScala.toList
         d.value2Pack(iv)
       case (dbo: BasicDBObject, d: TEnum) =>
         val idx = dbo.get("idx").asInstanceOf[Int]
@@ -85,11 +80,10 @@ object MongoConverter {
       case dt: TPackList[ValuePack[_]] =>
         val lp = pack.asInstanceOf[TPackList[ValuePack[_]]#Pack]
         val nd =  lp.value.map(d => write(d)).flatMap(d=>d.keySet().asScala.toList.map(d.get))
-//        MongoDBList(lp.value.map(d => write(d)): _*).underlying
         MongoDBObject(lp.dataType.t_code_ -> MongoDBList(nd: _*))
       case dt: TList[_] =>
         val lp = pack.asInstanceOf[TList[Any]#Pack]
-        MongoDBList(lp.value: _*).underlying
+        MongoDBObject(lp.dataType.t_code_ -> MongoDBList(lp.value: _*))
     }
   }
 }
