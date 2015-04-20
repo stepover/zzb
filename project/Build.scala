@@ -21,7 +21,7 @@ object Build extends Build {
   // -------------------------------------------------------------------------------------------------------------------
 
   lazy val root = Project("zzb", file("."))
-    .aggregate(zzbBox, envConfig, dbAccess, zzbShell, zzbDatatype, zzbStorage, zzbRest, zzbRestTests, zzbRestTestKit, zzbDomain,zzbUtil, zzbXmpp,examples)
+    .aggregate(zzbBox, envConfig, dbAccess, zzbShell, zzbDatatype, zzbStorage, zzbRest, zzbRestTests, zzbRestTestKit, zzbDomain,zzbUtil,examples)
     .settings(basicSettings: _*)
     .settings(noPublishing: _*)
 
@@ -122,14 +122,6 @@ object Build extends Build {
     compile(  scalaloggingSlf4j,logback,nScalaTime,sprayUtil) ++
       provided(akkaActor, scalaReflect) ++
       test(scalatest) ++
-      runtime(akkaSlf4j, logback)
-    )
-  lazy val zzbXmpp = Project("zzb-xmpp", file("zzb-xmpp"))
-    .settings(zzbModuleSettings: _*)
-    .settings(disableParallelTestSetting:_*)
-    .settings(libraryDependencies ++=
-    compile(scalaloggingSlf4j,nScalaTime,smackTcp,akkaActor,smackCore,smackExts,sprayUtil) ++
-      test(scalatest,akkaTestKit) ++
       runtime(akkaSlf4j, logback)
     )
   // -------------------------------------------------------------------------------------------------------------------

@@ -71,8 +71,4 @@ object Dependencies {
   val config = "com.typesafe" % "config" % "1.2.1"
   val nScalaTime = "com.github.nscala-time" %% "nscala-time" % "1.8.0"
   val scalaStm = "org.scala-stm" %% "scala-stm" % "0.7"
-
-  val smackCore = "org.igniterealtime.smack" % "smack-core" % "4.0.2"
-  val smackExts = "org.igniterealtime.smack" %  "smack-extensions" % "4.0.2"
-  val smackTcp = "org.igniterealtime.smack" % "smack-tcp" % "4.0.2"
 }
