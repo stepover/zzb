@@ -34,7 +34,9 @@ object XUserSettings extends SettingsCompanion[XUserSettings]("zzb.xmpp") {
 
       val rooms = if(uc.hasPath("rooms")) uc.getStringList("rooms").asScala.toList else List[String]()
 
-      XUserSetting(uc.getString("username"),uc.getString("password"),uc.getString("resource"),xmppConfig,rooms)
+      val rejoin = if(uc.hasPath("rejoin")) uc.getBoolean("rejoin") else false
+
+      XUserSetting(uc.getString("username"),uc.getString("password"),uc.getString("resource"),xmppConfig,rooms,rejoin)
 
     }
 
@@ -54,4 +56,4 @@ object XUserSettings extends SettingsCompanion[XUserSettings]("zzb.xmpp") {
     apply(actorSystem)
 }
 
-case class XUserSetting(username :String,password:String,resource:String,config:ConnectionConfiguration,rooms:List[String] = Nil)
+case class XUserSetting(username :String,password:String,resource:String,config:ConnectionConfiguration,rooms:List[String] = Nil,rejoin:Boolean=false)
