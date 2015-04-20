@@ -12,7 +12,7 @@ import scala.util.Success
 /**
  * Created by Simon on 2014/8/12
  */
-class XRoom(cfgUser: String, roomName: String, conn: XMPPConnection)(implicit bus: XmppEventBus) extends Actor with ActorLogging {
+class XRoom(cfgUser: String, roomName: String, conn: XMPPConnection,rejoin:Boolean=false)(implicit bus: XmppEventBus) extends Actor with ActorLogging {
 
   //保存参与者的昵称
   val members = mutable.Set[String]()
@@ -24,6 +24,7 @@ class XRoom(cfgUser: String, roomName: String, conn: XMPPConnection)(implicit bu
 
   log.debug(s"$mark try to join")
   val muc = new MultiUserChat(conn, roomName)
+  // muc.addPresenceInterceptor()
 
   import context.dispatcher
 
@@ -36,10 +37,15 @@ class XRoom(cfgUser: String, roomName: String, conn: XMPPConnection)(implicit bu
       val fromJid = packet.getFrom
       val presence = packet.asInstanceOf[Presence]
       log.debug(s"$mark got presence {} => {}", fromJid, packet.toString)
+
       if (presence.isAvailable)
         self ! Enter(fromJid)
-      else
+
+      else {
+        if(rejoin && fromJid.endsWith(cfgUser))
+          self ! JoinRoom
         self ! Leave(fromJid)
+      }
     }
   }
 
@@ -68,18 +74,23 @@ class XRoom(cfgUser: String, roomName: String, conn: XMPPConnection)(implicit bu
 
   conn.addPacketListener(memberPresenceListener, ConferencePresenceFilter(roomName))
 
-  Future {
-    muc.join(cfgUser)
-  }.onComplete {
-    case Success(v) =>
-      log.debug(s"$mark join success")
-    //订阅内部系统向外对话的请求，
+  def joinRoom= {
+    Future {
+      muc.join(cfgUser)
+    }.onComplete {
+      case Success(v) =>
+        log.debug(s"$mark join success")
+      //订阅内部系统向外对话的请求，
 
-    case scala.util.Failure(e) =>
-      log.error(e, s"$mark join  failed")
+      case scala.util.Failure(e) =>
+        log.error(e, s"$mark join  failed")
+    }
   }
+  self ! JoinRoom
 
   override def receive: Receive = {
+    case JoinRoom =>
+      joinRoom
     case Enter(fromJid) if !members.contains(fromJid) =>
       members.add(fromJid)
       log.debug(s"$mark members {},after add {},", members, fromJid)
@@ -134,6 +145,8 @@ class XRoom(cfgUser: String, roomName: String, conn: XMPPConnection)(implicit bu
   private case class Enter(jid: String)
 
   private case class Leave(jid: String)
+
+  private object JoinRoom
 
 }
 

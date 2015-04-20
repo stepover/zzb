@@ -205,7 +205,7 @@ class XUser(cfgUser: String, setting: XUserSetting)(implicit bus: XmppEventBus) 
   onTransition {
     case from -> Online if setting.rooms.nonEmpty =>
       setting.rooms.foreach(roomName => {
-        roomActors = context.actorOf(Props(new XRoom(cfgUser, roomName, conn)), roomName) :: roomActors
+        roomActors = context.actorOf(Props(new XRoom(cfgUser, roomName, conn,setting.rejoin)), roomName) :: roomActors
       })
   }
 
