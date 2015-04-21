@@ -49,6 +49,22 @@ object MongoConverter {
       case (dbo: BasicDBObject, d: TEnum) =>
         val idx = dbo.get("idx").asInstanceOf[Int]
         d.int2EnumPack(idx)
+      case (dbo: BasicDBObject, d: TStrKeyPackMap[ValuePack[_]]) =>
+        val itemDt = d.valueDataType
+        val iv = dbo.keySet().asScala.toList.map { k =>
+          k -> (dbo.get(k) match {
+            case dbobj: DBObject =>
+              read(dbobj, itemDt)
+            case dbobj =>
+              itemDt.AnyToPack(dbobj).orNull
+          })
+        }.toMap
+        val lv = d.applyMapValue(iv)
+        lv
+      case (dbo: BasicDBObject, d: TMap[Any, Any]) =>
+        val m =dbo.toMap.asScala.toSeq.toMap
+        val r = d.applyMapValue(m)
+        r
     }
   }
 
@@ -66,7 +82,7 @@ object MongoConverter {
       case dt: TStruct =>
         val sp = pack.asInstanceOf[TStruct#Pack]
         val vl = sp.value.fields.filter(_.value != null).map(v => write(v))
-        val vm = vl.flatMap(dbo=>dbo.toMap.asScala.toSeq).toMap
+        val vm = vl.flatMap(dbo => dbo.toMap.asScala.toSeq).toMap
         MongoDBObject(sp.dataType.t_code_ -> vm)
       case dt: TDateTime =>
         val mp = pack.asInstanceOf[TDateTime#Pack]
@@ -79,11 +95,19 @@ object MongoConverter {
         MongoDBObject(mp.dataType.t_code_ -> mp.value)
       case dt: TPackList[ValuePack[_]] =>
         val lp = pack.asInstanceOf[TPackList[ValuePack[_]]#Pack]
-        val nd =  lp.value.map(d => write(d)).flatMap(d=>d.keySet().asScala.toList.map(d.get))
+        val nd = lp.value.map(d => write(d)).flatMap(d => d.keySet().asScala.toList.map(d.get))
         MongoDBObject(lp.dataType.t_code_ -> MongoDBList(nd: _*))
       case dt: TList[_] =>
         val lp = pack.asInstanceOf[TList[Any]#Pack]
         MongoDBObject(lp.dataType.t_code_ -> MongoDBList(lp.value: _*))
+      case dt: TStrKeyPackMap[ValuePack[_]] =>
+        val mp = pack.asInstanceOf[TStrKeyPackMap[ValuePack[_]]#Pack]
+        val nd = mp.value.map {
+          case (k, v) => k -> write(v).get(v.dataType.t_code_)
+        }
+        MongoDBObject(pack.dataType.t_code_ -> nd)
+      case dt: TMap[_, _] =>
+        MongoDBObject(pack.dataType.t_code_ -> pack.value)
     }
   }
 }
