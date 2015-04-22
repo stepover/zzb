@@ -40,8 +40,7 @@ object MongoConverter {
           case dbobj =>
             itemDt.AnyToPack(dbobj).orNull
         }
-        val lv = d.value2Pack(iv)
-        lv
+        d.value2Pack(iv)
       case (dbList: BasicDBList, d: TList[AnyRef]) =>
         val itemClass = d.lm.runtimeClass
         val iv = dbList.asScala.toList
@@ -59,23 +58,13 @@ object MongoConverter {
               itemDt.AnyToPack(dbobj).orNull
           })
         }.toMap
-        val lv = d.applyMapValue(iv)
-        lv
+        d.applyMapValue(iv)
       case (dbo: BasicDBObject, d: TMap[Any, Any]) =>
         val m =dbo.toMap.asScala.toSeq.toMap
         val r = d.applyMapValue(m)
         r
     }
   }
-
-  //  private def dblist2Map(dbo: BasicDBList) = {
-  //    val seq = for {
-  //      d <- dbo.toArray
-  //      if d.isInstanceOf[DBObject]
-  //      (k, v) <- d.asInstanceOf[DBObject].toMap
-  //    } yield (k, v)
-  //    seq.toSeq
-  //  }
 
   def write(pack: ValuePack[_]): DBObject = {
     pack.dataType match {

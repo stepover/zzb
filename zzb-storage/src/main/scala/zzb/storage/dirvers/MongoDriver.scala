@@ -1,17 +1,12 @@
 package zzb.storage.dirvers
 
-import com.mongodb.casbah.{query, Imports}
-import com.mongodb.casbah.Imports._
-import com.mongodb.casbah.query.dsl.QueryExpressionObject
-import zzb.datatype._
-import org.joda.time.DateTime
-import spray.json._
-import zzb.storage.{DBObjectHelper, Driver, TStorable}
-
+import com.mongodb.casbah.Imports
 import com.mongodb.util.JSON
-import scala.Some
-import zzb.db.MongoAccess
 import com.typesafe.scalalogging.slf4j.Logging
+import spray.json._
+import zzb.datatype._
+import zzb.db.MongoAccess
+import zzb.storage.{DBObjectHelper, Driver, TStorable}
 
 /**
  * Created by Rowe.Luo on 2014/4/21
@@ -44,8 +39,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @return 返回文档自身（数据库操作完成后的最新版本，也就是参数中提供的版本）
    */
   def put(key: K, pack: T#Pack, replace: Boolean = true): T#Pack = {
-    val jsonString = pack.toJsValue.toString()
-    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
+//    val jsonString = pack.toJsValue.toString()
+//    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
+    val dbObject = MongoConverter.write(pack)
     val uuid_key = MongoDBObject(keyCode -> key.toString)
     val cnt = collection(_.getCount(uuid_key))
     if (cnt == 0) collection(_.insert(dbObject))
@@ -98,13 +94,15 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   private def convertDBObject(dbObject: Option[DBObject]): Option[T#Pack] = {
     dbObject match {
       case Some(v) if !v.get(del_flag).asInstanceOf[Boolean] =>
-        import spray.json._
-        //TODO MODIFY
-        v.removeField("_id")
-        v.removeField(del_flag)
-        val jsonString = JSON.serialize(v)
-        val jsonObject: JsValue = JsonParser(jsonString)
-        Some(docType.fromJsValue(jsonObject).asInstanceOf[T#Pack])
+//        import spray.json._
+//        //TODO MODIFY
+//        v.removeField("_id")
+//        v.removeField(del_flag)
+//        val jsonString = JSON.serialize(v)
+//        val jsonObject: JsValue = JsonParser(jsonString)
+//        Some(docType.fromJsValue(jsonObject).asInstanceOf[T#Pack])
+        val d =MongoConverter.read(v,docType).asInstanceOf[T#Pack]
+        Some(d)
       case _ => None
     }
   }
