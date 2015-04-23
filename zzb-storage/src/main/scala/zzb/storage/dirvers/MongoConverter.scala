@@ -28,6 +28,13 @@ object MongoConverter {
             k -> (d.theFieldMap(k) match {
               case datatype: TDateTime =>
                 datatype.string2DatePack(v.asInstanceOf[String])
+              case datatype: TInt => datatype.parse(v.toString)
+              case datatype: TLong => datatype.parse(v.toString)
+              case datatype: TShort => datatype.parse(v.toString)
+              case datatype: TByte => datatype.parse(v.toString)
+              case datatype: TDouble => datatype.parse(v.toString)
+              case datatype: TFloat => datatype.parse(v.toString)
+              case datatype: TBigDecimal => datatype.parse(v.toString)
               case datatype => datatype.AnyToPack(v).orNull
             })
         }.toMap
@@ -60,7 +67,7 @@ object MongoConverter {
         }.toMap
         d.applyMapValue(iv)
       case (dbo: BasicDBObject, d: TMap[Any, Any]) =>
-        val m =dbo.toMap.asScala.toSeq.toMap
+        val m = dbo.toMap.asScala.toSeq.toMap
         val r = d.applyMapValue(m)
         r
     }
@@ -76,6 +83,9 @@ object MongoConverter {
       case dt: TDateTime =>
         val mp = pack.asInstanceOf[TDateTime#Pack]
         MongoDBObject(mp.dataType.t_code_ -> mp.value.toString("yyyy-MM-dd HH:mm:ss.SSS"))
+      case dt: TBigDecimal =>
+        val mp = pack.asInstanceOf[TBigDecimal#Pack]
+        MongoDBObject(mp.dataType.t_code_ -> mp.value.toString())
       case dt: TEnum =>
         val mp = pack.asInstanceOf[TEnum#Pack]
         MongoDBObject(mp.dataType.t_code_ -> MongoDBObject("idx" -> mp.value.idx, "name" -> dt.int2Name(mp.value.idx)))

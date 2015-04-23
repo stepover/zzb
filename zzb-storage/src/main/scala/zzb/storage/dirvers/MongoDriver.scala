@@ -1,9 +1,6 @@
 package zzb.storage.dirvers
 
 import com.mongodb.casbah.Imports
-import com.mongodb.util.JSON
-import com.typesafe.scalalogging.slf4j.Logging
-import spray.json._
 import zzb.datatype._
 import zzb.db.MongoAccess
 import zzb.storage.{DBObjectHelper, Driver, TStorable}
@@ -13,7 +10,7 @@ import zzb.storage.{DBObjectHelper, Driver, TStorable}
  * mongodb数据驱动，主要用于测试
  * @param delay 读写操作延迟的毫秒数，默认为0，不延迟
  */
-abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] with MongoAccess with DBObjectHelper with Logging {
+abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: Int = 0) extends Driver[K, KT, T] with MongoAccess with DBObjectHelper {
 
   import com.mongodb.casbah.Imports._
 
@@ -39,9 +36,11 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    * @return 返回文档自身（数据库操作完成后的最新版本，也就是参数中提供的版本）
    */
   def put(key: K, pack: T#Pack, replace: Boolean = true): T#Pack = {
-//    val jsonString = pack.toJsValue.toString()
-//    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
-    val dbObject = MongoConverter.write(pack)
+    //    val jsonString = pack.toJsValue.toString()
+    //    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
+    val odb = MongoConverter.write(pack).get(pack.dataType.t_code_).asInstanceOf[DBObject]
+    import scala.collection.JavaConverters._
+    val dbObject = MongoDBObject(odb.keySet().asScala.map(k => k -> odb.get(k)).toList)
     val uuid_key = MongoDBObject(keyCode -> key.toString)
     val cnt = collection(_.getCount(uuid_key))
     if (cnt == 0) collection(_.insert(dbObject))
@@ -94,14 +93,14 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
   private def convertDBObject(dbObject: Option[DBObject]): Option[T#Pack] = {
     dbObject match {
       case Some(v) if !v.get(del_flag).asInstanceOf[Boolean] =>
-//        import spray.json._
-//        //TODO MODIFY
-//        v.removeField("_id")
-//        v.removeField(del_flag)
-//        val jsonString = JSON.serialize(v)
-//        val jsonObject: JsValue = JsonParser(jsonString)
-//        Some(docType.fromJsValue(jsonObject).asInstanceOf[T#Pack])
-        val d =MongoConverter.read(v,docType).asInstanceOf[T#Pack]
+        //        import spray.json._
+        //        //TODO MODIFY
+        //        v.removeField("_id")
+        //        v.removeField(del_flag)
+        //        val jsonString = JSON.serialize(v)
+        //        val jsonObject: JsValue = JsonParser(jsonString)
+        //        Some(docType.fromJsValue(jsonObject).asInstanceOf[T#Pack])
+        val d = MongoConverter.read(v, docType).asInstanceOf[T#Pack]
         Some(d)
       case _ => None
     }
@@ -139,13 +138,13 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
     val data_key = MongoDBObject(VersionInfo.t_code_ -> "1")
     //    val data_order = MongoDBObject(versionCode -> "desc")
     val version_docs = historyCollection(_.find(uuid_key, data_key))
-
-    import spray.json._
     version_docs.map {
       doc =>
-        val jsonString = JSON.serialize(doc.get(VersionInfo.t_code_))
-        val jsonObject = JsonParser(jsonString)
-        VersionInfo.fromJsValue(jsonObject)
+        //        val jsonString = JSON.serialize(doc.get(VersionInfo.t_code_))
+        //        val jsonObject = JsonParser(jsonString)
+        //        VersionInfo.fromJsValue(jsonObject)
+        val d = MongoConverter.read(doc.get(VersionInfo.t_code_).asInstanceOf[DBObject], VersionInfo).asInstanceOf[VersionInfo.Pack]
+        d
     }.toSeq.sortBy(f => f(VersionInfo.ver()).get.value * -1)
   }
 
@@ -159,9 +158,12 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
         if (seq_versions.length > 0) Some(seq_versions.last) else None
       case Some(v) =>
         logger.debug(s"currentVersion doc ${key.toString},found :${v.toString}")
-        val jsonString = JSON.serialize(v.get(VersionInfo.t_code_))
-        val jsonObject: JsValue = JsonParser(jsonString)
-        Some(VersionInfo.fromJsValue(jsonObject))
+        //        val jsonString = JSON.serialize(v.get(VersionInfo.t_code_))
+        //        val jsonObject: JsValue = JsonParser(jsonString)
+        //        Some(VersionInfo.fromJsValue(jsonObject))
+
+        val d = MongoConverter.read(v.get(VersionInfo.t_code_).asInstanceOf[DBObject], VersionInfo).asInstanceOf[VersionInfo.Pack]
+        Some(d)
     }
   }
 
@@ -176,7 +178,10 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
       col.find(p).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
-        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+        //        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+
+        val d = MongoConverter.read(v, docType).asInstanceOf[T#Pack]
+        d
       }.toList
     }
   }
@@ -201,7 +206,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
       col.find(dbObjcet).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
-        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+        //        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+        val d = MongoConverter.read(v, docType).asInstanceOf[T#Pack]
+        d
       }.toList
     }
   }
@@ -213,7 +220,6 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
    */
   override def count(dbObjcet: Imports.DBObject): Int = {
     collection { col =>
-
       col.count(dbObjcet)
     }
   }
@@ -230,7 +236,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
       col.find(dbObjcet).limit(limit).skip(skip).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
-        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+        //        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+        val d = MongoConverter.read(v, docType).asInstanceOf[T#Pack]
+        d
       }.toList
     }
   }
@@ -240,7 +248,9 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
       col.find(dbObjcet).sort(sort).limit(limit).skip(skip).map { v =>
         v.removeField("_id")
         v.removeField(del_flag)
-        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+        //        docType.fromJsValue(JsonParser(JSON.serialize(v))).asInstanceOf[T#Pack]
+        val d = MongoConverter.read(v, docType).asInstanceOf[T#Pack]
+        d
       }.toList
     }
   }
@@ -275,14 +285,24 @@ abstract class MongoDriver[K, KT <: DataType[K], T <: TStorable[K, KT]](delay: I
 
   private def saveHistory(pack: T#Pack): T#Pack = {
     val jsonString = pack.toJsValue.toString()
-    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
+    //    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
+
+    val odb = MongoConverter.write(pack).get(pack.dataType.t_code_).asInstanceOf[DBObject]
+    import scala.collection.JavaConverters._
+    val dbObject = MongoDBObject(odb.keySet().asScala.map(k => k -> odb.get(k)).toList)
+
     historyCollection(_.insert(dbObject))
     pack
   }
 
   private def doSave(newVerNum: Int, pack: T#Pack): T#Pack = {
-    val jsonString = pack.toJsValue.toString()
-    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
+    //    val jsonString = pack.toJsValue.toString()
+    //    val dbObject: DBObject = JSON.parse(jsonString).asInstanceOf[DBObject]
+
+    val odb = MongoConverter.write(pack).get(pack.dataType.t_code_).asInstanceOf[DBObject]
+    import scala.collection.JavaConverters._
+    val dbObject = MongoDBObject(odb.keySet().asScala.map(k => k -> odb.get(k)).toList)
+
     if (newVerNum > 1) {
       val key = getKey(pack)
       val uuid_key = MongoDBObject(keyCode -> key.toString)
