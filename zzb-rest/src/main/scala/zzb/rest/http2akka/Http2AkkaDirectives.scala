@@ -50,7 +50,7 @@ trait Http2AkkaDirectives {
 
   implicit def sprayJsonListMarshaller[T](implicit writer: RootJsonWriter[T], printer: JsonPrinter = PrettyPrinter) =
     Marshaller.delegate[List[T], String](ContentTypes.`application/json`) { value ⇒
-      val jsArray = new JsArray(value.map(writer.write))
+      val jsArray = JsArray(value.map(writer.write): _*)
       printer(jsArray)
     }
 

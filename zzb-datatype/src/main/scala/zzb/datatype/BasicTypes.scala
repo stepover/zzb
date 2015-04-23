@@ -3,6 +3,8 @@ package zzb.datatype
 import java.util.concurrent.atomic.AtomicReference
 
 import com.github.nscala_time.time.Imports
+import org.joda.time.format.DateTimeFormatter
+
 //import spray.json.DefaultJsonProtocol._
 import BasicJsonFormats._
 import spray.json._
@@ -176,32 +178,32 @@ object TDateTime extends TDateTime {
     override lazy val t_code_ = code
   }
 
-  def string2DateTime(dateTimeStr: String)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss"): Option[DateTime] = {
+  val defaultPatterns = (
+    "YYYY-MM-dd HH:mm:ss" ::
+    "YYYY-MM-dd HH:mm:ss.SSS" ::
+    "YYYY-MM-dd" ::
+    "HH:mm:ss" ::
+    "HH:mm:ss.SSSZZ" ::
+    "HH:mm:ssZZ" ::
+    "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
+    "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
+    Nil).map(DateTimeFormat.forPattern)
 
-    val patterns = pattern ::
-      "YYYY-MM-dd HH:mm:ss" ::
-      "YYYY-MM-dd HH:mm:ss.SSS" ::
-      "YYYY-MM-dd" ::
-      "HH:mm:ss" ::
-      "HH:mm:ss.SSSZZ" ::
-      "HH:mm:ssZZ" ::
-      "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-      "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-      Nil
+  val init: Option[DateTime] = None
 
-    val init: Option[DateTime] = None
+  def string2DateTime(dateTimeStr: String)(implicit pattern: String = ""): Option[DateTime] = {
 
-
-    def tryParse(res: Option[DateTime], pt: String) = {
+    def tryParse(res: Option[DateTime], pf: DateTimeFormatter) = {
       if (res.isDefined) res
       else try {
-        Some(DateTimeFormat.forPattern(pt).parseDateTime(dateTimeStr))
+        Some(pf.parseDateTime(dateTimeStr))
       } catch {
         case ex: Throwable => None
       }
     }
+    val pts = if (pattern.length > 0) DateTimeFormat.forPattern(pattern) :: defaultPatterns else defaultPatterns
 
-    (init /: patterns)(tryParse)
+    (init /: pts)(tryParse)
   }
 
    def date2String(date: DateTime)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss") = date.toString(pattern)
@@ -287,6 +289,8 @@ trait TEnum extends TMono[EnumIdx] {
 
   implicit def enumValue2Pack(ev: this.type#Value) = Pack(EnumIdx(ev.id))
 
+  implicit def enumValue2PackOption(ev: this.type#Value) = Some(Pack(EnumIdx(ev.id)))
+
   //implicit def Packe2EnumValue(ev: this.type#Value) = Pack(EnumIdx(ev.id))
 
   implicit def enumPack2Int(ei: Pack): Int = ei.value.idx
@@ -348,6 +352,7 @@ trait TEnum extends TMono[EnumIdx] {
 
 object TEnum extends Enumeration with TEnum {
   override val t_memo_ : String = "Enum"
+
 }
 
 object EnumRegistry {

@@ -11,7 +11,7 @@ import zzb.datatype.StructPath
  * @author 何伟波
  * @since  0.1.0
  */
-trait DBObjectHelper extends Logging{
+trait DBObjectHelper{
 
   val  gtStringMethod :PartialFunction[(String,Any,String),Option[Imports.DBObject with QueryExpressionObject]]={
     case (key,value,"gt") if value.isInstanceOf[String]=> Some( key $gt value.toString )

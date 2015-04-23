@@ -10,7 +10,7 @@ import bintray.Plugin._
 import bintray.Keys._
 
 object BuildSettings {
-  val VERSION = "0.1.2-SNAPSHOT"
+  val VERSION = "0.1.2-RC5"
 
   lazy val basicSettings = seq(
     version := NightlyBuildSupport.buildVersion(VERSION),
@@ -20,7 +20,7 @@ object BuildSettings {
     description := "Restful framework base on Scala,Akka,Spary",
     startYear := Some(2013),
     licenses +=("MIT", url("http://opensource.org/licenses/MIT")),
-    scalaVersion := "2.10.4",
+    scalaVersion := "2.10.5",
     publishMavenStyle := true,
     resolvers ++= Dependencies.resolutionRepos,
     scalacOptions := Seq(
@@ -41,8 +41,18 @@ object BuildSettings {
 
   )
 
+//  lazy val releaseSetting = seq(
+//    repository in bintray := "release"
+//  )
+
   lazy val releaseSetting = seq(
-    repository in bintray := "release"
+    // publishing
+    crossPaths := true,
+    publishTo :=
+      Some("zzb snapshot" at {
+        // public uri is repo.spray.io, we use an SSH tunnel to the nexus here
+        "s3://s3.cn-north-1.amazonaws.com.cn/aws.baoxian.com/release/"
+      })
   )
 
   lazy val snapshotSetting = seq(
@@ -95,9 +105,7 @@ object BuildSettings {
         }
       )
 
-  lazy val zzbModuleSettings = if (bintray_user.size > 0 && !VERSION.trim.endsWith("SNAPSHOT"))
-    zzbModuleSettingsBase ++ bintraySettings
-  else zzbModuleSettingsBase
+  lazy val zzbModuleSettings =  zzbModuleSettingsBase
 
   lazy val noPublishing = seq(
     publish :=(),

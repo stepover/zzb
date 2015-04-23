@@ -365,7 +365,7 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
       case (_, true) => clearSessionBeforeActionExeRoute(a)
       case (n, _) =>
         hlog(a.opt)(log.warning("refuse execute action '{}' for unsubmit({}) alter session ", a.name, n))
-        val msg = JsArray(as.map(_.copy(seq = -1)).map(AlterSession.format.write))
+        val msg = JsArray(as.map(_.copy(seq = -1)).map(AlterSession.format.write):_*)
         complete(Conflict, msg)
     }
   }

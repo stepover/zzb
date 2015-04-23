@@ -12,12 +12,12 @@ trait Suite extends TStruct {
   type ItemValidator = Item.Pack => Option[String]
 
   case class ItemSelector(template: ItemDef, selectIdx: Int = 0,
-                        amount: BigDecimal = -1, min: BigDecimal = 0, max: BigDecimal = 0, variable: Boolean = true)
+                          amount: BigDecimal = -1, min: BigDecimal = 0, max: BigDecimal = 0, variable: Boolean = true)
 
   object ItemDefType extends TMono[ItemDef] {
     def parse(str: String): ItemDefType.Pack = ???
 
-    val vtm =  classTag[ItemDef]
+    val vtm = classTag[ItemDef]
 
     val t_memo_ : String = "保障项目定义"
     override lazy val t_code_ : String = "itemDefine"
@@ -42,6 +42,7 @@ trait Suite extends TStruct {
     val listPrice = Field(TBigDecimal("listPrice", "原价"))
     val discountRate = Field(TFloat("discountRate", "折扣率"))
   }
+
   class ItemPackWrap(val pack: Item.Pack) {
 
     def itemDefine: ItemDef = pack(Item.itemDef()).get.value
@@ -59,6 +60,7 @@ trait Suite extends TStruct {
         if res.isDefined
       } yield res.get
   }
+
   /** 保障项目定义 */
   trait ItemDef {
 
@@ -158,21 +160,37 @@ trait Suite extends TStruct {
    * 根据所给的字段值创建一个 Suite 对象，如果没有给保障项目，则（保障项目为空，允许所有的保障项目），
    * 如果给出了保障项目，则过滤规则按照给出的保障项目已有的定义
    */
-  override def apply(values: ValuePack[Any]*) =
-    if (values.exists(v => v.dataType == InnerItems))
-      innerApply(values)
+  override def apply(values: Option[ValuePack[_]]*) = {
+    val items = values.filter{
+      case vp :ValuePack[_] if vp.value != null => true
+      case Some(vp:ValuePack[_]) if vp.value != null => true
+      case _ => false
+    }.map(_.get)
+    if (items.exists(v => v.dataType == InnerItems))
+      innerApply(items)
     else
-      innerApply(InnerItems(Map[ItemDef, Item.Pack]()) :: values.toList)
+      innerApply(InnerItems(Map[ItemDef, Item.Pack]()) :: items.toList)
+  }
+
 
   /**
    * 根据说给的字段值和保障项目过滤器创建一个 Suite 对象，如果没有给保障项目，则保障项目为空
    * 如果给出了保障项目，用过滤器过滤给出的保障项目
    */
-  def apply(filter: FilterType, values: ValuePack[Any]*): Pack =
-    if (values.exists(v => v.dataType == InnerItems))
-      innerApply(filter, innerApply(values))
+  def makeWithFilter(filter: FilterType, values: AnyRef*): Pack = {
+    val items = values.filter{
+      case vp :ValuePack[_] if vp.value != null => true
+      case Some(vp:ValuePack[_]) if vp.value != null => true
+      case _ => false
+    }.map{
+      case vp :ValuePack[_]  => vp
+      case Some(vp:ValuePack[_])  => vp
+    }
+    if (items.exists(v => v.dataType == InnerItems))
+      innerApply(filter, innerApply(items))
     else
-      innerApply(InnerItems(Map[ItemDef, Item.Pack](), filter) :: values.toList)
+      innerApply(InnerItems(Map[ItemDef, Item.Pack](), filter) :: items.toList)
+  }
 
   private def innerApply(filter: FilterType, v: Pack): Pack = {
     val fieldItems = InnerItems(v.Items.value, filter)

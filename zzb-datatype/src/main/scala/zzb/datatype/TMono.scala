@@ -35,18 +35,6 @@ trait TMono[VT] extends DataType[VT] {
 
   implicit val valueFormat: JsonFormat[VT]
 
-  private def boxedType(rtClass: Class[_]) = rtClass match {
-    case java.lang.Byte.TYPE => Class.forName("java.lang.Byte")
-    case java.lang.Short.TYPE => Class.forName("java.lang.Short")
-    case java.lang.Character.TYPE => Class.forName("java.lang.Character")
-    case java.lang.Integer.TYPE => Class.forName("java.lang.Integer")
-    case java.lang.Long.TYPE => Class.forName("java.lang.Long")
-    case java.lang.Float.TYPE => Class.forName("java.lang.Float")
-    case java.lang.Double.TYPE => Class.forName("java.lang.Double")
-    case java.lang.Boolean.TYPE => Class.forName("java.lang.Boolean")
-    case rtc => rtc
-  }
-
 
   override def typeInfo: TypeInfo = new TypeInfo(vtm.runtimeClass.getSimpleName, t_memo_)
 
@@ -69,12 +57,14 @@ trait TMono[VT] extends DataType[VT] {
   def validators: List[Pack => Option[String]] = List()
 
   //此类型和下面的隐式转换构成 字段赋值的 “:= 语法”
-  class FieldFuncWrap(val field: () => this.type) {
-    def :=(value: VT) = field().apply(value)
+  implicit class FieldFuncWrap(val field: () => this.type) {
+    def :=(value: VT) = Some(field().apply(value))
+
+    def :=(value: Option[VT]) = value match {
+      case Some(v:VT) => Some(field().apply(v.value))
+      case _ => None
+    }
   }
-
-  implicit def fieldValue(field: () => this.type) = new FieldFuncWrap(field)
-
 
   def fromJsValue(x: JsValue): Pack = Pack(valueFormat.read(x))
 
@@ -155,7 +145,6 @@ trait TMono[VT] extends DataType[VT] {
       override def write(obj: Pack): JsValue = obj.toJsValue
     }
   }
-
 }
 
 object TMono {

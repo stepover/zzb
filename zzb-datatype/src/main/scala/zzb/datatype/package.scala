@@ -27,6 +27,24 @@ package object datatype {
 
   implicit def structField2InStructPath(field: StructField): NestedStructFields = field().path
 
+  def boxedType(rtClass: Class[_]) = rtClass match {
+    case java.lang.Byte.TYPE => Class.forName("java.lang.Byte")
+    case java.lang.Short.TYPE => Class.forName("java.lang.Short")
+    case java.lang.Character.TYPE => Class.forName("java.lang.Character")
+    case java.lang.Integer.TYPE => Class.forName("java.lang.Integer")
+    case java.lang.Long.TYPE => Class.forName("java.lang.Long")
+    case java.lang.Float.TYPE => Class.forName("java.lang.Float")
+    case java.lang.Double.TYPE => Class.forName("java.lang.Double")
+    case java.lang.Boolean.TYPE => Class.forName("java.lang.Boolean")
+    case rtc => rtc
+  }
+
+  implicit def packToOption(pack :ValuePack[_]): Option[ValuePack[_]] = Some(pack)
+
+  implicit def structValueToPackList(v: StructValue): List[Some[ValuePack[Any]]] =  v.values.values.map(Some(_)).toList
+
+  //implicit def singlePackToSeq(packOpt :Option[ValuePack[_]]): Seq[Option[ValuePack[_]]] = List(packOpt)
+
   implicit class ValuePackOptWarp(itemOpt: Option[ValuePack[Any]]) {
     def apply[VT](dt: DataType[VT]): Option[ValuePack[VT]] = itemOpt match {
       case None =>
@@ -77,91 +95,124 @@ package object datatype {
   }
 
   //TList 字段赋值的 “:= 语法”
-  implicit class TListFieldTrans[T<:TList[_]](val field: () => T) {
-    def :=[U](value: List[U])(implicit um:ClassTag[U]) = {
-      if(field().lm != um) throw new IllegalArgumentException
-      field().applyListValue(value)
+  implicit class TListFieldTrans[T <: TList[_]](val field: () => T) {
+    def :=[U](value: List[U])(implicit um: ClassTag[U]) = {
+      if (field().lm != um) throw new IllegalArgumentException
+      Some(field().applyListValue(value))
+    }
+
+    def :=[U](value: Option[List[U]])(implicit um: ClassTag[U]) = value match {
+      case Some(v) =>
+        if (field().lm != um) throw new IllegalArgumentException
+        Some(field().applyListValue(v))
+      case None => None
     }
   }
 
   //TProperty 字段赋值的 “:= 语法”
-  implicit class TPropertyFieldTrans[T<:TProperty](val field: () => T ) {
-    def :=(value: Map[String,Any]) = {
-      field().applyMapValue(value.map(kv => (kv._1,TVariant(kv._2.toString))))
+  implicit class TPropertyFieldTrans[T <: TProperty](val field: () => T) {
+    def :=(value: Map[String, Any]) = Some(
+      field().applyMapValue(value.map(kv => (kv._1, TVariant(kv._2.toString))))
+    )
+
+    def :=(value: Option[Map[String, Any]]) = value match {
+      case Some(v) => Some(
+        field().applyMapValue(v.map(kv => (kv._1, TVariant(kv._2.toString))))
+      )
+      case None => None
     }
   }
 
 
   //TMap 字段赋值的 “:= 语法”
-  implicit class TMapFieldTrans[T<:TMap[_,_]](val field: () => T) {
-    def :=[K,V](value: Map[K,V])(implicit km:ClassTag[K], vm:ClassTag[V]) = {
-      val (lkm,lvm) = (field().km,field().vm)
-      if(lkm != km || lvm != vm)
+  implicit class TMapFieldTrans[T <: TMap[_, _]](val field: () => T) {
+    def :=[K, V](value: Map[K, V])(implicit km: ClassTag[K], vm: ClassTag[V]) = {
+      val (lkm, lvm) = (field().km, field().vm)
+      if (lkm != km || lvm != vm)
         throw new IllegalArgumentException
-      field().applyMapValue(value)
+      Some(field().applyMapValue(value))
+    }
+
+    def :=[K, V](value: Option[Map[K, V]])(implicit km: ClassTag[K], vm: ClassTag[V]) = value match {
+      case Some(v) =>
+        val (lkm, lvm) = (field().km, field().vm)
+        if (lkm != km || lvm != vm)
+          throw new IllegalArgumentException
+        Some(field().applyMapValue(v))
+      case None => None
     }
   }
 
   // 字段赋值的 “:= 语法”
-  implicit class TStructFieldTrans[T<: TStruct](val field: () => T) {
-    def :=(value: T#Pack) = field().apply(value)
+  implicit class TStructFieldTrans[T <: TStruct](val field: () => T) {
+    def :=(value: T#Pack) = Some(field().apply(value))
+
+    def :=(value: Option[T#Pack]) = value match {
+      case Some(v) => Some(field().apply(v))
+      case None => None
+    }
   }
 
-  // 字段赋值的 “:= 语法”
-  implicit class TStringFieldTrans(val field: () => TString) {
-    def :=(value: String) = field().apply(value)
+  class MonoTrans[VT,DT<:TMono[VT]]( field: () => DT)(implicit m: ClassTag[VT]){
+    def :=(value: VT) = Some(field().apply(value))
+    def :=(value: Option[_]) = value match {
+      case Some(v) if boxedType(m.runtimeClass).isInstance(v)  => Some(field().apply(v.asInstanceOf[VT]))
+      case Some(v:DT#Pack) if v.value != null  => Some(field().apply(v.value))
+      case None => None
+    }
+    def :=(value: DT#Pack) = Some(field().apply(value.value))
   }
 
-  // 字段赋值的 “:= 语法”
-  implicit class TIntFieldTrans(val field: () => TInt) {
-    def :=(value: Int) = field().apply(value)
+  implicit class PrimitiveTrans[VT,OT,DT<:TMono[VT]]( field: () => DT)(implicit m: ClassTag[VT],o: ClassTag[VT],f:OT => VT){
+    def :=(value: VT) = Some(field().apply(value))
+    def :=(value: OT) = Option(value).map(field().apply(_))
+    def :=(value: Option[_]) = value match {
+      case Some(v) if  boxedType(m.runtimeClass).isInstance(v)  => Option(v.asInstanceOf[VT]).map(field().apply)
+      case Some(v:DT#Pack)  => Option(v.value).map(field().apply)
+      case _ => None
+    }
+    def :=(value: DT#Pack) = Some(field().apply(value.value))
   }
 
-  implicit class TLongFieldTrans(val field: () => TLong) {
-    def :=(value: Long) = field().apply(value)
-  }
+  implicit class TStringFieldTrans(field: () => TString) extends MonoTrans[String,TString](field)
 
-  implicit class TByteFieldTrans(val field: () => TByte) {
-    def :=(value: Byte) = field().apply(value)
-  }
+  implicit class TIntFieldTrans(field: () => TInt) extends PrimitiveTrans[Int,Integer,TInt](field)
 
-  implicit class TShortFieldTrans(val field: () => TShort) {
-    def :=(value: Short) = field().apply(value)
-  }
+  implicit class TLongFieldTrans(field: () => TLong) extends PrimitiveTrans[Long,java.lang.Long,TLong](field)
 
-  implicit class TFloatFieldTrans(val field: () => TFloat) {
-    def :=(value: Float) = field().apply(value)
-  }
+  implicit class TByteFieldTrans(field: () => TByte) extends PrimitiveTrans[Byte,java.lang.Byte,TByte](field)
 
-  implicit class TDoubleFieldTrans(val field: () => TDouble) {
-    def :=(value: Double) = field().apply(value)
+  implicit class TShortFieldTrans(field: () => TShort) extends PrimitiveTrans[Short,java.lang.Short,TShort](field)
+
+  implicit class TFloatFieldTrans(field: () => TFloat) extends PrimitiveTrans[Float,java.lang.Float,TFloat](field)
+
+  implicit class TDoubleFieldTrans(field: () => TDouble) extends PrimitiveTrans[Double,java.lang.Double,TDouble](field)
+
+  implicit class TBooleanFieldTrans(field: () => TBoolean) extends PrimitiveTrans[Boolean,java.lang.Boolean,TBoolean](field)
+
+  implicit class TBigDecimalFieldTrans(field: () => TBigDecimal) extends MonoTrans[BigDecimal,TBigDecimal](field)
+
+  implicit class TEnumFieldTrans[DT<:TEnum](field: () => DT)(implicit f :Int => DT#Pack) {
+
+    def :=(idx: Int) = Some(f(idx))
+    def :=(idx: Integer) = Option(idx).map(i => f(i.intValue()))
   }
 
   import com.github.nscala_time.time.Imports._
+  implicit class TDateTimeFieldTrans(field: () => TDateTime) extends MonoTrans[DateTime,TDateTime](field)
+  
 
-  implicit class TDateTimeFieldTrans(val field: () => TDateTime) {
-    def :=(value: DateTime) = field().apply(value)
-  }
-
-  implicit class TBigDecimalFieldTrans(val field: () => TBigDecimal) {
-    def :=(value: BigDecimal) = field().apply(value)
-  }
-
-  implicit class TBooleanFieldTrans(val field: () => TBoolean) {
-    def :=(value: Boolean) = field().apply(value)
-  }
-
-  private val datePatterns ="YYYY-MM-dd HH:mm:ss" ::
-  "YYYY-MM-dd" ::
+  private val datePatterns = "YYYY-MM-dd HH:mm:ss" ::
+    "YYYY-MM-dd" ::
+    "YYYY-MM-dd HH:mm:ss.SSS" ::
     "HH:mm:ss" ::
     "HH:mm:ss.SSSZZ" ::
     "HH:mm:ssZZ" ::
     "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
     "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-    "YYYY-MM-dd HH:mm:ss.SSS" ::
     Nil
 
-  private def tryParseDate(str:String)(res: Option[DateTime], pt: String) = {
+  private def tryParseDate(str: String)(res: Option[DateTime], pt: String) = {
     if (res.isDefined) res
     else try {
       Some(DateTimeFormat.forPattern(pt).parseDateTime(str))
@@ -191,11 +242,12 @@ package object datatype {
     def read(value: JsValue) = value match {
       case JsString(dateStr) =>
         val init: Option[DateTime] = None
-        (init /: datePatterns)(tryParseDate(dateStr)) match{
+        (init /: datePatterns)(tryParseDate(dateStr)) match {
           case Some(v) => v
           case None => throw new IllegalArgumentException("Invalid date time format: \"" + dateStr + '"')
         }
       case x => deserializationError("Expected datetime as JsString, but got " + x)
     }
   }
+
 }

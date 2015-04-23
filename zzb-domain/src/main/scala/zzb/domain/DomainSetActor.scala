@@ -23,12 +23,14 @@ trait DomainSetActor[K, KT <: DataType[K], T <: TStorable[K, KT]] extends RestSe
 
   def makeChildActor(id: Option[String], isNewCreate: Boolean, data: Option[Any]): ActorRef
 
+  def loadDataTimeout = 5000.millis
+
   def childByName(id: String): Future[Either[(StatusCode, String), ActorRef]] = {
     import zzb.domain.DomainActor._
     val p = Promise[Either[(StatusCode, String), ActorRef]]()
 
-    //todo:处理 DomainSetActor 创建子actor 超时
-    implicit val timeout = Timeout(2000.millis)
+    //
+    //implicit val timeout = Timeout(2000.millis)
     import context.dispatcher
 
     context.child(id) match {
@@ -39,7 +41,7 @@ trait DomainSetActor[K, KT <: DataType[K], T <: TStorable[K, KT]] extends RestSe
         hlog(log.debug("start load  child '{}' ...", id))
         try {
           val subAct = makeChildActor(Some(id), isNewCreate = false, None)
-          subAct.startInit[T].onComplete {
+          subAct.startInit[T](loadDataTimeout).onComplete {
             case scala.util.Success(InitDocOver(Right(doc))) => p.success(Right(subAct))
             case scala.util.Success(InitDocOver(Left(e@RestException(_)))) =>
               p.success(Left(e.err, e.err.reason))
