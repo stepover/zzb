@@ -1,11 +1,13 @@
 package zzb.datatype
 
+import java.text.SimpleDateFormat
 import java.util.concurrent.atomic.AtomicReference
 
 import com.github.nscala_time.time.Imports
 import org.joda.time.format.DateTimeFormatter
 
 //import spray.json.DefaultJsonProtocol._
+
 import BasicJsonFormats._
 import spray.json._
 import zzb.datatype.meta.EnumTypeInfo
@@ -27,13 +29,14 @@ trait TString extends TMono[String] {
   val vtm = classTag[String]
 
   def parse(str: String): Pack = Pack(str)
+
   implicit val valueFormat = TStringJsonFormat
 }
 
 object TString extends TString {
   override val t_memo_ : String = "String"
 
-  def apply(code:String,memo:String) = new TString{
+  def apply(code: String, memo: String) = new TString {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
@@ -41,6 +44,7 @@ object TString extends TString {
 
 trait TInt extends TMono[Int] {
   val vtm = classTag[Int]
+
   def parse(str: String): Pack = Pack(str.toInt)
 
   implicit val valueFormat = TIntJsonFormat
@@ -48,7 +52,8 @@ trait TInt extends TMono[Int] {
 
 object TInt extends TInt {
   override val t_memo_ : String = "Int"
-  def apply(code:String,memo:String) = new TInt{
+
+  def apply(code: String, memo: String) = new TInt {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
@@ -57,13 +62,16 @@ object TInt extends TInt {
 
 trait TLong extends TMono[Long] {
   val vtm = classTag[Long]
+
   def parse(str: String): Pack = Pack(str.toLong)
+
   implicit val valueFormat = TLongJsonFormat
 }
 
 object TLong extends TLong {
   override val t_memo_ : String = "Long"
-  def apply(code:String,memo:String) = new TLong{
+
+  def apply(code: String, memo: String) = new TLong {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
@@ -72,13 +80,16 @@ object TLong extends TLong {
 
 trait TShort extends TMono[Short] {
   val vtm = classTag[Short]
+
   def parse(str: String): Pack = Pack(str.toShort)
+
   implicit val valueFormat = TShortJsonFormat
 }
 
 object TShort extends TShort {
   override val t_memo_ : String = "Short"
-  def apply(code:String,memo:String) = new TShort{
+
+  def apply(code: String, memo: String) = new TShort {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
@@ -86,13 +97,16 @@ object TShort extends TShort {
 
 trait TByte extends TMono[Byte] {
   val vtm = classTag[Byte]
+
   def parse(str: String): Pack = Pack(str.toByte)
+
   implicit val valueFormat = TByteJsonFormat
 }
 
 object TByte extends TByte {
   override val t_memo_ : String = "Byte"
-  def apply(code:String,memo:String) = new TByte{
+
+  def apply(code: String, memo: String) = new TByte {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
@@ -100,13 +114,16 @@ object TByte extends TByte {
 
 trait TDouble extends TMono[Double] {
   val vtm = classTag[Double]
+
   def parse(str: String): Pack = Pack(str.toDouble)
+
   implicit val valueFormat = TDoubleJsonFormat
 }
 
 object TDouble extends TDouble {
   override val t_memo_ : String = "Double"
-  def apply(code:String,memo:String) = new TDouble{
+
+  def apply(code: String, memo: String) = new TDouble {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
@@ -114,13 +131,16 @@ object TDouble extends TDouble {
 
 trait TFloat extends TMono[Float] {
   val vtm = classTag[Float]
+
   def parse(str: String): Pack = Pack(str.toFloat)
+
   implicit val valueFormat = TFloatJsonFormat
 }
 
 object TFloat extends TFloat {
   override val t_memo_ : String = "Float"
-  def apply(code:String,memo:String) = new TFloat{
+
+  def apply(code: String, memo: String) = new TFloat {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
@@ -128,13 +148,16 @@ object TFloat extends TFloat {
 
 trait TBigDecimal extends TMono[BigDecimal] {
   val vtm = classTag[BigDecimal]
+
   def parse(str: String): Pack = Pack(BigDecimal.apply(str))
+
   implicit val valueFormat = TBigDecimalJsonFormat
 }
 
 object TBigDecimal extends TBigDecimal {
   override val t_memo_ : String = "BigDecimal"
-  def apply(code:String,memo:String) = new TBigDecimal{
+
+  def apply(code: String, memo: String) = new TBigDecimal {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
@@ -168,53 +191,59 @@ trait TDateTime extends TMono[DateTime] {
       case None => throw new IllegalArgumentException("Invalid date time format: \"" + dateTimeStr + '"')
     }
   }
+
   implicit val valueFormat = DateTimeJsonFormat
 }
 
 object TDateTime extends TDateTime {
   override val t_memo_ : String = "DateTime"
-  def apply(code:String,memo:String) = new TDateTime{
+
+  def apply(code: String, memo: String) = new TDateTime {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
 
   val defaultPatterns = (
     "YYYY-MM-dd HH:mm:ss" ::
-    "YYYY-MM-dd HH:mm:ss.SSS" ::
-    "YYYY-MM-dd" ::
-    "HH:mm:ss" ::
-    "HH:mm:ss.SSSZZ" ::
-    "HH:mm:ssZZ" ::
-    "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-    "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-    Nil).map(DateTimeFormat.forPattern)
+      "YYYY-MM-dd HH:mm:ss.SSS" ::
+      "YYYY-MM-dd" ::
+      "HH:mm:ss" ::
+      "HH:mm:ss.SSSZZ" ::
+      "HH:mm:ssZZ" ::
+      "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
+      "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
+      Nil).map(new SimpleDateFormat(_))
 
   val init: Option[DateTime] = None
 
-  def string2DateTime(dateTimeStr: String)(implicit pattern: String = ""): Option[DateTime] = {
+  def string2DateTime(dateTimeStr: String)(implicit pattern: String = "yyyy-MM-dd HH:mm:ss"): Option[DateTime] = {
 
-    def tryParse(res: Option[DateTime], pf: DateTimeFormatter) = {
+    def tryParse(res: Option[DateTime], pf: SimpleDateFormat) = {
       if (res.isDefined) res
       else try {
-        Some(pf.parseDateTime(dateTimeStr))
-      } catch {
-        case ex: Throwable => None
+        Some(new DateTime(new SimpleDateFormat(pattern).parse(dateTimeStr).getTime))
+      }
+      catch {
+        case e: Throwable =>
+          e.printStackTrace()
+          None
       }
     }
-    val pts = if (pattern.length > 0) DateTimeFormat.forPattern(pattern) :: defaultPatterns else defaultPatterns
+    val pts = if (pattern.length > 0) new SimpleDateFormat(pattern) :: defaultPatterns else defaultPatterns
 
     (init /: pts)(tryParse)
+
   }
 
-   def date2String(date: DateTime)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss") = date.toString(pattern)
+  def date2String(date: DateTime)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss") = date.toString(pattern)
 }
 
 trait TBoolean extends TMono[Boolean] {
   val vtm = classTag[Boolean]
 
-  def YesTexts = List("true", "True", "TRUE", "Y", "y", "YES", "yes", "1", "是", "有","真")
+  def YesTexts = List("true", "True", "TRUE", "Y", "y", "YES", "yes", "1", "是", "有", "真")
 
-  def NoTexts = List("false", "False", "FALSE", "N", "n", "No", "no", "0", "否", "无", "非", "空", "假","")
+  def NoTexts = List("false", "False", "FALSE", "N", "n", "No", "no", "0", "否", "无", "非", "空", "假", "")
 
   val YesName = "true"
 
@@ -241,17 +270,19 @@ trait TBoolean extends TMono[Boolean] {
   implicit def boolPack2String(i: Pack): String = if (i.value) YesName else NoName
 
   override protected def packToString(i: ValuePack[Boolean]): String = if (i.value) YesName else NoName
+
   implicit val valueFormat = TBooleanJsonFormat
 }
 
 object TBoolean extends TBoolean {
   override val t_memo_ : String = "Boolean"
-  def apply(code:String,memo:String) = new TBoolean{
+
+  def apply(code: String, memo: String) = new TBoolean {
     override val t_memo_ = memo
     override lazy val t_code_ = code
   }
 
-  def apply(code:String,memo:String,yesText:String,noText:String) = new TBoolean{
+  def apply(code: String, memo: String, yesText: String, noText: String) = new TBoolean {
     override val t_memo_ = memo
     override lazy val t_code_ = code
     override val YesName = yesText
@@ -369,5 +400,5 @@ object EnumRegistry {
 
   def get(key: String): Option[TEnum] = _registry.get.get(key)
 
-  def all =_registry.get.map(_._2).toList
+  def all = _registry.get.map(_._2).toList
 }
