@@ -174,17 +174,17 @@ trait TDateTime extends TMono[DateTime] {
 
   def parse(str: String, pattern: String): Pack = Pack(DateTimeFormat.forPattern(pattern).parseDateTime(str))
 
-  def format(dt: Pack)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss"): String = dt.value.toString(pattern)
+  def format(dt: Pack)(implicit pattern: String = "yyyy-MM-dd HH:mm:ss"): String = dt.value.toString(pattern)
 
-  override protected def packToString(i: ValuePack[DateTime]): String = i.value.toString("YYYY-MM-dd HH:mm:ss")
+  override protected def packToString(i: ValuePack[DateTime]): String = i.value.toString("yyyy-MM-dd HH:mm:ss")
 
   implicit def dataPack2DateTime(i: Pack): Imports.DateTime = i.value
 
 
-  implicit def dataPack2String(i: Pack)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss"): String = format(i)(pattern)
+  implicit def dataPack2String(i: Pack)(implicit pattern: String = "yyyy-MM-dd HH:mm:ss"): String = format(i)(pattern)
 
 
-  implicit def string2DatePack(dateTimeStr: String)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss"): Pack = {
+  implicit def string2DatePack(dateTimeStr: String)(implicit pattern: String = "yyyy-MM-dd HH:mm:ss"): Pack = {
 
     TDateTime.string2DateTime(dateTimeStr) match {
       case Some(v) => Pack(v)
@@ -204,19 +204,18 @@ object TDateTime extends TDateTime {
   }
 
   val defaultPatterns = (
-    "YYYY-MM-dd HH:mm:ss" ::
-      "YYYY-MM-dd HH:mm:ss.SSS" ::
-      "YYYY-MM-dd" ::
+    "yyyy-MM-dd HH:mm:ss" ::
+      "yyyy-MM-dd HH:mm:ss.SSS" ::
+      "yyyy-MM-dd" ::
       "HH:mm:ss" ::
       "HH:mm:ss.SSSZZ" ::
       "HH:mm:ssZZ" ::
       "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-      "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-      Nil).map(new SimpleDateFormat(_))
+      Nil).distinct.map(new SimpleDateFormat(_))
 
   val init: Option[DateTime] = None
 
-  def string2DateTime(dateTimeStr: String)(implicit pattern: String = "yyyy-MM-dd HH:mm:ss"): Option[DateTime] = {
+  def string2DateTime(dateTimeStr: String)(implicit pattern: String = ""): Option[DateTime] = {
 
     def tryParse(res: Option[DateTime], pf: SimpleDateFormat) = {
       if (res.isDefined) res
@@ -229,13 +228,13 @@ object TDateTime extends TDateTime {
           None
       }
     }
-    val pts = if (pattern.length > 0) new SimpleDateFormat(pattern) :: defaultPatterns else defaultPatterns
+    val pts = (if (pattern.length > 0) new SimpleDateFormat(pattern) :: defaultPatterns else defaultPatterns).distinct
 
     (init /: pts)(tryParse)
 
   }
 
-  def date2String(date: DateTime)(implicit pattern: String = "YYYY-MM-dd HH:mm:ss") = date.toString(pattern)
+  def date2String(date: DateTime)(implicit pattern: String = "yyyy-MM-dd HH:mm:ss") = date.toString(pattern)
 }
 
 trait TBoolean extends TMono[Boolean] {
