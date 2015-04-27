@@ -167,7 +167,7 @@ trait TStruct extends DataType[StructValue] {
 
   def getFieldFunc(name: String) = fieldFuncMap.get(name)
 
-  def theFieldMap = fieldMap.toSeq.toMap
+  def theFieldMap = fieldMap
 
   private implicit class NestPathHelp(subs: Option[StructPath]) {
     def ::(field: StructField) = {
