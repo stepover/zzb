@@ -203,15 +203,16 @@ object TDateTime extends TDateTime {
     override lazy val t_code_ = code
   }
 
-  val defaultPatterns = (
-    "yyyy-MM-dd HH:mm:ss" ::
-      "yyyy-MM-dd HH:mm:ss.SSS" ::
-      "yyyy-MM-dd" ::
-      "HH:mm:ss" ::
-      "HH:mm:ss.SSSZZ" ::
-      "HH:mm:ssZZ" ::
-      "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
-      Nil).distinct.map(new SimpleDateFormat(_))
+  val pattens = "yyyy-MM-dd HH:mm:ss" ::
+    "yyyy-MM-dd HH:mm:ss.SSS" ::
+    "yyyy-MM-dd" ::
+    "HH:mm:ss" ::
+    "HH:mm:ss.SSSZZ" ::
+    "HH:mm:ssZZ" ::
+    "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
+    Nil
+
+  val defaultPatterns = pattens.distinct.map(new SimpleDateFormat(_))
 
   val init: Option[DateTime] = None
 
@@ -228,7 +229,7 @@ object TDateTime extends TDateTime {
           None
       }
     }
-    val pts = (if (pattern.length > 0) new SimpleDateFormat(pattern) :: defaultPatterns else defaultPatterns).distinct
+    val pts = (if (pattern.length > 0 && !pattens.contains(pattern)) new SimpleDateFormat(pattern) :: defaultPatterns else defaultPatterns).distinct
 
     (init /: pts)(tryParse)
 
