@@ -216,23 +216,27 @@ object TDateTime extends TDateTime {
 
   val init: Option[DateTime] = None
 
-  def string2DateTime(dateTimeStr: String)(implicit pattern: String = ""): Option[DateTime] = {
-
-    def tryParse(res: Option[DateTime], pf: SimpleDateFormat) = {
-      if (res.isDefined) res
-      else try {
-        Some(new DateTime(new SimpleDateFormat(pattern).parse(dateTimeStr).getTime))
-      }
-      catch {
-        case e: Throwable =>
-          e.printStackTrace()
-          None
-      }
+  def tryParse(dateTimeStr: String, pf: SimpleDateFormat) = {
+    try {
+      Some(new DateTime(pf.parse(dateTimeStr).getTime))
+    } catch {
+      case e: Throwable =>
+        e.printStackTrace()
+        None
     }
+  }
+
+  def parseFirstSuccess(pts: List[SimpleDateFormat], dateTimeStr: String): Option[DateTime] = {
+    for (p <- pts) {
+      val d = tryParse(dateTimeStr, p)
+      if (d.isDefined) return d
+    }
+    None
+  }
+
+  def string2DateTime(dateTimeStr: String)(implicit pattern: String = ""): Option[DateTime] = {
     val pts = (if (pattern.length > 0 && !pattens.contains(pattern)) new SimpleDateFormat(pattern) :: defaultPatterns else defaultPatterns).distinct
-
-    (init /: pts)(tryParse)
-
+    parseFirstSuccess(pts, dateTimeStr)
   }
 
   def date2String(date: DateTime)(implicit pattern: String = "yyyy-MM-dd HH:mm:ss") = date.toString(pattern)
