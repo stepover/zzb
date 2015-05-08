@@ -312,9 +312,14 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   case class BlockRule(blockRoles: Set[String], path: Path, msg: String)
 
   case class LongTimeExec(longExec: (T#Pack, AuthorizedOperator) => Future[Any],
-                          doc: T#Pack, opt: AuthorizedOperator = sysopt, jobDesc: String, replyTo: ActorRef = sender()) extends AllowDelay
+                          doc: T#Pack, opt: AuthorizedOperator = sysopt, jobDesc: String, replyTo: ActorRef = sender()) extends AllowDelay{
 
-  case class ApplyRevise(revise: DocRevise, replyTo: ActorRef = sender(),newTag:String = "" , mark: Int = 0) extends AllowDelay
+    override  def toString="zzb.domain.LongTimeExec"
+  }
+
+  case class ApplyRevise(revise: DocRevise, replyTo: ActorRef = sender(),newTag:String = "" , mark: Int = 0) extends AllowDelay{
+    override  def toString="zzb.domain.ApplyRevise"
+  }
 
 }
 

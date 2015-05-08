@@ -9,7 +9,9 @@ import scala.collection.mutable
 /**
  * Created by Simon on 2014/7/18
  */
-class Action(val name: String, val opt: AuthorizedOperator, val params: Map[String, String], val entity: Option[ValuePack[_]]) extends AllowDelay
+class Action(val name: String, val opt: AuthorizedOperator, val params: Map[String, String], val entity: Option[ValuePack[_]]) extends AllowDelay{
+  override def toString="zzb.domain.Action"
+}
 
 trait AllowDelay {
   override def toString = getClass.getSimpleName.replace("$", "")
