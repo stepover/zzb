@@ -63,6 +63,7 @@
        memoryStorage[String, TString, Plane.type](Plane,log = this.log)
        
 4. DomainActor 利用缓存减少数据库访问
+-----------------------------------
 
 DomainActor 中增加两个函数，可以重载控制默认的行为
 
