@@ -132,8 +132,9 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
 
     val revise = DocRevise(List(DocNodeRevise(NodePath(doc.dataType.me.path), doc, MergeManner.Replace)), operator)
 
+    val doFlush = params.contains("flush") || alwaysflush
 
-    val f1 = self ? ApplyRevise(revise, null,params.getOrElse("tag", "") ,1) //给自己发送事件，由状态机中的处理完成实际的存储
+    val f1 = self ? ApplyRevise(revise, null,doFlush,params.getOrElse("tag", "") ,1) //给自己发送事件，由状态机中的处理完成实际的存储
     val res_f = if (action.isDefined) {
         for {
           v1 <- f1
@@ -191,19 +192,19 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   }
 
   def submitAlterHandler: StateFunction = {
-    case Event(ApplyRevise(revise, replyTo,newTag, 1), doc) =>
+    case Event(ApplyRevise(revise, replyTo,doFlush,newTag, 1), doc) =>
       val newDoc = revise.nodeRevises.foldLeft(doc) { (d, n) => //应用每一项修改
         hlog(sysopt)(log.debug("ApplyRevise:{} = {}", n.path, n.value.json))
         n.path.alterDomainData(d, Some(n.value), n.merge)
       }
-      doSave(newDoc, revise.opt, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender(),newTag)
+      doSave(newDoc, revise.opt, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender(),doFlush,newTag)
       stay()
-    case Event(ApplyRevise(revise, replyTo,newTag, _), doc) =>
+    case Event(ApplyRevise(revise, replyTo,doFlush,newTag, _), doc) =>
       val newDoc = revise.nodeRevises.foldLeft(doc) { (d, n) => //应用每一项修改
         hlog(sysopt)(log.debug("ApplyRevise:{} = {}", n.path, n.value.json))
         n.path.alterDomainData(d, Some(n.value), n.merge)
       }
-      doSave(newDoc, revise.opt, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender(),newTag)
+      doSave(newDoc, revise.opt, if (replyTo != null && replyTo != context.system.deadLetters) replyTo else sender(),doFlush,newTag)
       stay()
   }
 
@@ -218,13 +219,13 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
       goto(executingState)
   }
 
-  protected def doSave(newDoc: T#Pack, opt: AuthorizedOperator, replyTo: ActorRef = context.sender(),newTag :String = "") :Unit = {
+  protected def doSave(newDoc: T#Pack, opt: AuthorizedOperator, replyTo: ActorRef = context.sender(),doFlush:Boolean = alwaysflush,newTag :String = "") :Unit = {
 //    if (onlyToMemoryCache) {
 //      save(newDoc,opt.id, opt.isManager,onlyToMemoryCache)
 //      if (replyTo != null && replyTo != context.system.deadLetters) replyTo ! newDoc
 //    } else
     require(newTag ne null)
-      self ! LongTimeExec((nd, op) => save(nd, op.id, op.isManager,newTag), newDoc, opt, "SaveDoc", replyTo)
+      self ! LongTimeExec((nd, op) => save(nd, op.id, op.isManager,doFlush,newTag), newDoc, opt, "SaveDoc", replyTo)
   }
 
   protected override def anyToActionResult(any: Any): (StatusCode, ActionResult) = any match {
@@ -293,8 +294,8 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   }
 
   implicit class UsingSaved(s : State) {
-    def usingSaved(nextStateDate: T#Pack,opt:AuthorizedOperator, newTag:String = "",replyTo: ActorRef = context.sender()) = {
-      doSave(nextStateDate,opt,replyTo,newTag)
+    def usingSaved(nextStateDate: T#Pack,opt:AuthorizedOperator, doFlush:Boolean = true,newTag:String = "",replyTo: ActorRef = context.sender()) = {
+      doSave(nextStateDate,opt,replyTo,doFlush,newTag)
       s using nextStateDate
     }
 
@@ -314,7 +315,7 @@ trait DomainFSM[K, KT <: DataType[K], T <: TStorable[K, KT], S <: Enumeration#Va
   case class LongTimeExec(longExec: (T#Pack, AuthorizedOperator) => Future[Any],
                           doc: T#Pack, opt: AuthorizedOperator = sysopt, jobDesc: String, replyTo: ActorRef = sender()) extends AllowDelay
 
-  case class ApplyRevise(revise: DocRevise, replyTo: ActorRef = sender(),newTag:String = "" , mark: Int = 0) extends AllowDelay
+  case class ApplyRevise(revise: DocRevise, replyTo: ActorRef = sender(),flush:Boolean,newTag:String = "" , mark: Int = 0) extends AllowDelay
 
 }
 
