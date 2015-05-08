@@ -10,7 +10,7 @@ import bintray.Plugin._
 import bintray.Keys._
 
 object BuildSettings {
-  val VERSION = "0.1.2-R7"
+  val VERSION = "0.1.2-RC7"
 
   lazy val basicSettings = seq(
     version := NightlyBuildSupport.buildVersion(VERSION),
