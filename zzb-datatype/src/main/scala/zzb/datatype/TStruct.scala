@@ -167,6 +167,8 @@ trait TStruct extends DataType[StructValue] {
 
   def getFieldFunc(name: String) = fieldFuncMap.get(name)
 
+  def theFieldMap = fieldMap
+
   private implicit class NestPathHelp(subs: Option[StructPath]) {
     def ::(field: StructField) = {
       subs match {
@@ -284,7 +286,7 @@ trait TStruct extends DataType[StructValue] {
 
   def fieldCount = fieldMap.size
 
-  protected def makeValuePack(fieldValues: fieldsType) =
+  def makeValuePack(fieldValues: fieldsType) =
     makeValuePackWithDefault(fieldValues)
 
   //创建对象时检查有缺省值的字段，如果没有设置值，则设置缺省值

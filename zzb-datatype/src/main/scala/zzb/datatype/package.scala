@@ -202,13 +202,12 @@ package object datatype {
   implicit class TDateTimeFieldTrans(field: () => TDateTime) extends MonoTrans[DateTime,TDateTime](field)
   
 
-  private val datePatterns = "YYYY-MM-dd HH:mm:ss" ::
-    "YYYY-MM-dd" ::
-    "YYYY-MM-dd HH:mm:ss.SSS" ::
+  private val datePatterns = "yyyy-MM-dd HH:mm:ss" ::
+    "yyyy-MM-dd" ::
+    "yyyy-MM-dd HH:mm:ss.SSS" ::
     "HH:mm:ss" ::
     "HH:mm:ss.SSSZZ" ::
     "HH:mm:ssZZ" ::
-    "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
     "yyyy-MM-dd'T'HH:mm:ss.SSSZZ" ::
     Nil
 
@@ -222,7 +221,7 @@ package object datatype {
   }
 
   implicit class String2DateTimeTrans(val s: String) {
-    def toDateTime(implicit pattern: String = "YYYY-MM-dd HH:mm:ss") = {
+    def toDateTime(implicit pattern: String = "yyyy-MM-dd HH:mm:ss") = {
       val patterns = pattern :: datePatterns
 
       val init: Option[DateTime] = None
@@ -237,7 +236,7 @@ package object datatype {
   }
 
   implicit object DateTimeJsonFormat extends JsonFormat[DateTime] {
-    def write(date: DateTime) = JsString(date.toString("YYYY-MM-dd HH:mm:ss.SSS"))
+    def write(date: DateTime) = JsString(date.toString("yyyy-MM-dd HH:mm:ss.SSS"))
 
     def read(value: JsValue) = value match {
       case JsString(dateStr) =>

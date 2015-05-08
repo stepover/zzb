@@ -140,7 +140,7 @@ class BasicTypeTest extends WordSpec with MustMatchers {
     "implicitly format output 2" in {
       val bd: BirthDay.Pack = "1999-11-22 20:22:13"
 
-      implicit val pattern = "YYYY-MM-dd"
+      implicit val pattern = "yyyy-MM-dd"
 
       BirthDay.format(bd) must equal("1999-11-22")
     }
