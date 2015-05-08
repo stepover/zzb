@@ -57,12 +57,19 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
   /**
    * 领域对象主键
    */
-  val domId: K
+  def domId: K
+
 
   private val hlog = HeritLog("dom")
 
   //获取命名超时
   val getTimeout: String => Timeout = str => Timeout(2000.milli)
+
+  //是否每次保存数据时都立即存到数据库
+  def alwaysflush = true
+
+  //自动保存到数据库的时间间隔(秒)
+  def autoFlushIntervalSeconds = 60
 
   /**
    * 创建时的所有者
@@ -86,6 +93,7 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
 
   override def postStop(): Unit = {
     hlog(log.info("domain actor stoped!"))
+    flush()
   }
 
   override def receive: Receive = msgReceive orElse restReceive
@@ -136,6 +144,7 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
 
 
   protected def msgReceive: Receive = {
+    case AutoFlush => flush()
     case StartInit =>
       docLoadStatus match {
         case DocUnload =>
@@ -152,6 +161,8 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
         case m@InitDocOver(Right(doc)) =>
           docLoadStatus = DocLoaded
           hlog(sysopt)(log.info(s"doc loaded!"))
+          if(!alwaysflush && autoFlushIntervalSeconds > 0)
+            context.system.scheduler.schedule(autoFlushIntervalSeconds.seconds,autoFlushIntervalSeconds.seconds,self,AutoFlush)
         case m@InitDocOver(Left(e@RestException(_))) =>
           docLoadStatus = DocLoadFailed
           hlog(sysopt)(log.info(e.err.value))
@@ -220,8 +231,9 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
     val p = Promise[(StatusCode, ActionResult)]()
 
     val newTag = params.get("tag")
+    val doFlush = params.contains("flush") || alwaysflush
 
-    val f1 = save(doc,operator.id,operator.isManager,newTag.getOrElse("")).map { savedDocOpt =>
+    val f1 = save(doc,operator.id,operator.isManager,doFlush,newTag.getOrElse("")).map { savedDocOpt =>
       val savedDoc = savedDocOpt.get
       hlog(log.info("saved! ver = {} revise = {}", savedDoc.version, savedDoc.revise))
       (StatusCodes.OK, ActionResult(0, "AlterOK", VersionRevise(savedDoc.version, savedDoc.revise)))
@@ -365,7 +377,7 @@ with AuthorizeDirectives with DomainDirectives with DomainLogging {
       case (_, true) => clearSessionBeforeActionExeRoute(a)
       case (n, _) =>
         hlog(a.opt)(log.warning("refuse execute action '{}' for unsubmit({}) alter session ", a.name, n))
-        val msg = JsArray(as.map(_.copy(seq = -1)).map(AlterSession.format.write))
+        val msg = JsArray(as.map(_.copy(seq = -1)).map(AlterSession.format.write):_*)
         complete(Conflict, msg)
     }
   }
@@ -837,6 +849,8 @@ object DomainActor {
   val sysopt = AuthorizedOperator("system", isManager = true)
 
   case object StartInit
+
+  case object AutoFlush
 
   case class InitDocOver[T <: TStruct](result: Either[Throwable, T#Pack])
 

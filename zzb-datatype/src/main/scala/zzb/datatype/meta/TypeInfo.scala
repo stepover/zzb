@@ -21,7 +21,7 @@ object FieldDesc extends DefaultJsonProtocol {
         "memo" -> JsString(c.typeInfo.memo)
       )
       val finalFields =  c.typeInfo match {
-        case et : EnumTypeInfo => fields + ("enum" -> JsArray(et.values.map(f=>JsObject(Map("name" ->JsString(f._2),"value" -> JsString(f._1.toString))))))
+        case et : EnumTypeInfo => fields + ("enum" -> JsArray(et.values.map(f=>JsObject(Map("name" ->JsString(f._2),"value" -> JsString(f._1.toString)))):_*))
         case _ => fields
       }
       JsObject(finalFields)
@@ -136,7 +136,7 @@ object EnumTypeInfo extends DefaultJsonProtocol {
         "memo" -> JsString(c.memo)
       )
       if (c.values.size > 0)
-        m = m + ("values" -> JsObject(c.values.map(f=>f._1.toString ->JsString(f._2))))
+        m = m + ("values" -> JsObject(c.values.map(f=>f._1.toString ->JsString(f._2)):_*))
       JsObject(m)
     }
 
