@@ -25,6 +25,7 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
 
   /** 当前文档快照（不精确，想要精确的就取latest，它是个Future） */
   //var snapDoc: Option[T#Pack] = None
+  val unFlushDoc : Ref[Option[T#Pack]] = Ref(Option[T#Pack](null))
 
   def createDoc: Future[Option[T#Pack]] //= None
 
@@ -79,14 +80,18 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
   //    promise.future
   //  }
 
-  def load(verNum: Int = -1,forceReload:Boolean = false): Future[Option[T#Pack]] = {
+  def load(verNum: Int = -1, forceReload: Boolean = false): Future[Option[T#Pack]] = {
     val promise = Promise[Option[T#Pack]]()
     if (verNum < 0) {
       val lvd_f = atomic {
         implicit txn =>
-          val lvd_f = specStorage(-1,forceReload)
-          latest_f.set(lvd_f)
-          lvd_f
+          unFlushDoc.get match {
+            case None =>
+              val lvd_f = specStorage(-1, forceReload)
+              latest_f.set(lvd_f)
+              lvd_f
+            case Some(doc) => latest_f.get
+          }
       }
       lvd_f.onComplete {
         case Success(Some(lvd)) =>
@@ -111,24 +116,40 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
     specStorage(tag)
   }
 
-  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true, newTag: String = ""): Future[Option[T#Pack]] = {
+  def save(pack: T#Pack, operatorName: String = "", isOwnerOperate: Boolean = true,
+           flush: Boolean = true, newTag: String = ""): Future[Option[T#Pack]] = {
     //    snapDoc = Some(pack)
     require(newTag ne null)
     val promise = Promise[Option[T#Pack]]()
-    //if (onlyToMemoryCache) promise.success(Some(pack))
-    //else {
-    val vd_f = specStorage.save(pack, operatorName, isOwnerOperate, newTag)
-    vd_f.onComplete {
-      case Success(vd) =>
-        //snapDoc = Some(vd)
-        promise.success(Some(vd))
-      case Failure(ex) => promise.failure(ex)
+    if (!flush && newTag == "") {
+      atomic {
+        implicit txn => unFlushDoc.set(Some(pack))
+      }
+      promise.success(Some(pack))
     }
-    //}
+    else {
+      val vd_f = specStorage.save(pack, operatorName, isOwnerOperate, newTag)
+      vd_f.onComplete {
+        case Success(vd) =>
+          atomic {
+            implicit txn => unFlushDoc.set(None)
+          }
+          promise.success(Some(vd))
+        case Failure(ex) => promise.failure(ex)
+      }
+    }
     atomic {
       implicit txn => latest_f.set(promise.future)
     }
     promise.future
+  }
+
+  def flush() :Future[Option[T#Pack]] = {
+    val dirty = atomic {  implicit txn => unFlushDoc.get   }
+    dirty match {
+      case None => latest
+      case Some(doc) => save(doc)
+    }
   }
 
   def tag(newTag: String): Future[T#Pack] = specStorage.tag(newTag)
@@ -149,6 +170,7 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
         atomic {
           implicit txn =>
             latest_f.set(Future(None)) //更新对最近文档的 STM 引用
+            unFlushDoc.set(None)
         }
         promise.success(1)
       case Success(n) => promise.success(n)
@@ -171,6 +193,7 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
         atomic {
           implicit txn =>
             latest_f.set(newDoc) //更新对最近文档的 STM 引用
+            unFlushDoc.set(None)
         }
         promise.success(Some(d))
       case Success(None) => promise.success(None)
@@ -193,6 +216,7 @@ trait DocProcessor[K, KT <: DataType[K], T <: TStorable[K, KT]] {
         atomic {
           implicit txn =>
             latest_f.set(newDoc) //更新对最近文档的 STM 引用
+            unFlushDoc.set(None)
         }
         promise.success(Some(d))
       case Success(None) => promise.success(None)

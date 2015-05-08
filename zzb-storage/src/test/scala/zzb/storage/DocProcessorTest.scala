@@ -95,7 +95,7 @@ class DocProcessorTest extends FlatSpec {
 
     val t2Before = t1Done <~ UserInfo(userName:="jack",userAge := 39)
 
-    val t2Done = hip.save(t2Before,"",true,"t2").await.get
+    val t2Done = hip.save(t2Before,"",true,true,"t2").await.get
 
     assert(t2Done.version - t1Done.version === 2) //打一次tag版本号会增加2
     assert(t2Done.eqtag  === "t2")
