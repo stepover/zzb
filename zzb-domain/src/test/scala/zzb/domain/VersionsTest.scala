@@ -40,7 +40,7 @@ class VersionsTest extends PlaneHttpTestBase {
         alterSeq must be > 0
       }
 
-      manager(Post(s"/api/planes/$pid/alter/$alterSeq")) ~> check {
+      manager(Post(s"/api/planes/$pid/alter/$alterSeq?flush=true")) ~> check {
         status mustBe OK //提交更改
         val res = ActionResult.format.read(JsonParser(body.asString))
         res.ver.version > 0 mustBe true

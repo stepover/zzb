@@ -22,6 +22,13 @@ class PlaneActor(val domId: String,
 
   def logName: String = "zzb.domain.Plane"
 
+
+  //是否每次保存数据时都立即存到数据库
+  override def alwaysflush = false
+
+  //自动保存到数据库的时间间隔(秒)
+  override def autoFlushIntervalSeconds = 60
+
   mdc +=("pid" -> domId, "owner" -> createOwner.getOrElse(""))
 
   private val hlog = HeritLog("pln")

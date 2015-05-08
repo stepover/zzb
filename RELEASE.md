@@ -61,3 +61,23 @@
 
        val storage: Storage[String, TString, Plane.type] =
        memoryStorage[String, TString, Plane.type](Plane,log = this.log)
+       
+4. DomainActor 利用缓存减少数据库访问
+-----------------------------------
+
+DomainActor 中增加两个函数，可以重载控制默认的行为
+
+      //是否每次保存数据时都立即存到数据库
+      def alwaysflush = true
+    
+      //自动保存到数据库的时间间隔(秒)
+      def autoFlushIntervalSeconds = 60
+
+DomainFSM 中的doSave函数增加了一个布尔值的 doFlash 参数，控制是否立即更新数据到数据库，不提供这个参数默认使用 alwaysflush
+
+Rest API 中进行数据更新时可以使用  Post(s"/api/planes/$pid/alter/$alterSeq?flush=true")  的方式强制更新到数据库，
+不提供这个参数就使用 alwaysflush 的设置。
+
+如果设置了 autoFlushIntervalSeconds ，数据会定时自动更新到数据库。
+DomainActor 的 postStop 中也会自动执行更新到数据库的动作
+在DomainActor的子类型中也可以直接调用 DomainActor 的 flush 方法同步数据到数据库。

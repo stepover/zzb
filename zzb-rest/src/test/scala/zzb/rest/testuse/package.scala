@@ -36,7 +36,7 @@ package object testuse {
 
   object Task extends TStruct {
     val t_memo_ = "在某状态下可执行的动作信息列表"
-    val createDate = FieldString(TString("createDate", "任务创建日期"), default = () ⇒ DateTime.now.toString("YYYY-MM-dd"))
+    val createDate = FieldString(TString("createDate", "任务创建日期"), default = () ⇒ DateTime.now.toString("yyyy-MM-dd"))
     val isAssignToUser = FieldBoolean(TBoolean("isAssignToUser", "是否分配到人"), isRequired = true, default = true)
     val track = Field(TrackInfos)
   }
